@@ -1,8 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
  
-int main() {
-	FILE *infile;
+int rtp_server(FILE *infile, void *dest_addr, int count, int af_family) {
 	char fname[] = "test_data/original.au";
 	char line[100];
 	int readchars = 0;
@@ -20,6 +19,7 @@ int main() {
 	}
  
 	fclose(infile);  /* Close the file */
+	return 0;
 }
 
 

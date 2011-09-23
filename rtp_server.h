@@ -1,6 +1,8 @@
 #ifndef RTP_SERVER_H
 #define RTP_SERVER_H
 
+#define RTP_HEADER_SIZE 8
+
 /*
  * Reads the U-law encoded data and sends to clients. The soundfile is
  * expected to include HTTP headers, so we need a function that parses

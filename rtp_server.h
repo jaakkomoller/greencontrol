@@ -17,5 +17,4 @@
  */
 int rtp_server(FILE *soundfile, FILE *input, int control_port, void *dest_addr, int count, int af_family);
 
-
 #endif /* RTP_SERVER_H */

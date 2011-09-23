@@ -14,4 +14,19 @@ int rtp_server(FILE *soundfile, FILE *input, int control_port, void *dest_addr, 
 	return 0;
 }
 
+struct rtp_packet {
+	unsigned version :2;
+	unsigned padding :1;
+	unsigned extension :1;
+	unsigned csrc_counter :4;
+	unsigned marker :1;
+	unsigned payload_type :7;
+	unsigned seq_no :16;
 
+	unsigned timestamp :32;
+	unsigned ssrc_id :32;
+};
+
+static int init_rtp_packet(struct rtp_packet *packet) {
+	return 0;
+}

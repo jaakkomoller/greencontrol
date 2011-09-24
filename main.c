@@ -21,7 +21,7 @@ int main(int argc, char *argv[]) {
 	 * manner (, or then in an other way, what ever is your thing...).
 	 */
 	if(argc == 2 && strcmp(argv[1], "rtptest") == 0)
-		rtp_server(soundfile, stdin, 1500, NULL, 0, 4);
+		rtp_server(soundfile, stdin, 1500, NULL, 0, NULL, 0);
 		
 
 	fclose(soundfile);

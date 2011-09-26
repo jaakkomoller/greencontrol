@@ -79,6 +79,10 @@ int rtp_server(FILE *soundfile, FILE *input, int control_port, struct sockaddr_i
 	
 	/* Skip file headers TODO remove this when fetching http */ 
 	readchars = fread (buffer, 1, 24, soundfile);
+	/*readchars = fread (buffer, 1, 15, soundfile);
+	readchars = fread (buffer, 1, 1, soundfile);
+	printf("Encoding is %d\n", buffer[0]);
+	goto exit;*/
 
 	/* Initializing select */
 	
@@ -107,7 +111,8 @@ int rtp_server(FILE *soundfile, FILE *input, int control_port, struct sockaddr_i
 		else {
 			/* TODO Here we should read the other file descriptors
 			 * as well. */
-			n = sendto(sock, packet, 13, 0,
+			n = sendto(sock, packet, RTP_HEADER_SIZE +
+				U_CODE_SAMPLE_SIZE, 0,
 				(const struct sockaddr *)&server,length);
 			if (n < 0) {
 				err = UDP_SEND_ERROR;
@@ -115,6 +120,7 @@ int rtp_server(FILE *soundfile, FILE *input, int control_port, struct sockaddr_i
 			}
 			
 			packet_no++;
+			/* TODO packet no as seq no might wrap */
 			init_rtp_packet(packet, packet_no, packet_no, ssrc);
 			readchars = fread(packet->payload, 1, U_CODE_SAMPLE_SIZE, soundfile);
 			tv.tv_usec = RTP_SAMPLE_INTERVAL_USEC;

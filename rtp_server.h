@@ -1,7 +1,7 @@
 #ifndef RTP_SERVER_H
 #define RTP_SERVER_H
 
-#define RTP_HEADER_SIZE 8
+#define RTP_HEADER_SIZE 12
 #define U_CODE_SAMPLE_SIZE 1
 #define RTP_SAMPLE_INTERVAL_USEC 125
 

@@ -30,6 +30,7 @@ struct rtp_packet {
 	unsigned char payload[];
 };
 
+static int payload_size();
 static struct rtp_packet *create_rtp_packet(size_t payload_length);
 static int init_rtp_packet(struct rtp_packet *packet, unsigned seq_no, unsigned long timestamp, unsigned long ssrc);
 static unsigned long get_ssrc();
@@ -37,8 +38,8 @@ static unsigned long get_ssrc();
 int rtp_server(FILE *soundfile, FILE *input, int control_port, struct sockaddr_in *dest4, int count4, struct sockaddr_in6 *dest6, int count6) {
 	
 	int sock, n, err = 0, retval = 0;
-	unsigned int length;
-	unsigned long ssrc = get_ssrc(), packet_no = 0;
+	unsigned int length, packet_no = 0;
+	unsigned long ssrc = get_ssrc(), timestamp = 0;
 	struct sockaddr_in server, from;
 	struct hostent *hp;
 	char buffer[256];
@@ -47,7 +48,7 @@ int rtp_server(FILE *soundfile, FILE *input, int control_port, struct sockaddr_i
 	struct timeval tv;
 	int readchars = 0;
 
-	packet = create_rtp_packet(U_CODE_SAMPLE_SIZE);
+	packet = create_rtp_packet(payload_size());
 	if(packet == NULL) {
 		err = RTP_PACKET_ALLOC_ERROR;
 		goto exit_no_packet;
@@ -73,7 +74,7 @@ int rtp_server(FILE *soundfile, FILE *input, int control_port, struct sockaddr_i
 	length=sizeof(struct sockaddr_in);
 
 	/* Initialize rtp packet */
-	init_rtp_packet(packet, 0, packet_no, ssrc);
+	init_rtp_packet(packet, packet_no, timestamp, ssrc);
 
 	/* Initialize test data */
 	
@@ -91,10 +92,10 @@ int rtp_server(FILE *soundfile, FILE *input, int control_port, struct sockaddr_i
 	FD_SET(0, &rfds);
 
 	/* Wait up to five seconds. */
-	tv.tv_sec = 0;
-	tv.tv_usec = RTP_SAMPLE_INTERVAL_USEC;
+	tv.tv_sec = RTP_SEND_INTERVAL_SEC;
+	tv.tv_usec = RTP_SEND_INTERVAL_USEC;
 
-	readchars = fread (packet->payload, 1, 1, soundfile);
+	readchars = fread (packet->payload, 1, payload_size(), soundfile);
 
 	while(1) {
 		if(readchars == 0)
@@ -112,18 +113,24 @@ int rtp_server(FILE *soundfile, FILE *input, int control_port, struct sockaddr_i
 			/* TODO Here we should read the other file descriptors
 			 * as well. */
 			n = sendto(sock, packet, RTP_HEADER_SIZE +
-				U_CODE_SAMPLE_SIZE, 0,
+				payload_size(), 0,
 				(const struct sockaddr *)&server,length);
 			if (n < 0) {
 				err = UDP_SEND_ERROR;
 				goto exit;
 			}
 			
+			printf(".");
+			fflush(stdout);
+
 			packet_no++;
+			timestamp++;
 			/* TODO packet no as seq no might wrap */
-			init_rtp_packet(packet, packet_no, packet_no, ssrc);
-			readchars = fread(packet->payload, 1, U_CODE_SAMPLE_SIZE, soundfile);
-			tv.tv_usec = RTP_SAMPLE_INTERVAL_USEC;
+			init_rtp_packet(packet, packet_no, timestamp, ssrc);
+			readchars = fread(packet->payload, 1, payload_size(),
+				soundfile);
+			tv.tv_sec = RTP_SEND_INTERVAL_SEC;
+			tv.tv_usec = RTP_SEND_INTERVAL_USEC;
 		}
 	}
 	
@@ -133,6 +140,12 @@ exit_no_sock:
 	free(packet);
 exit_no_packet:
 	return 0;
+}
+
+static inline int payload_size() {
+	return (int)(((float)SAMPLE_SIZE) * ((float)SAMPLING_FREQ) *
+		(((float)RTP_SEND_INTERVAL_USEC) / 1000000 +
+		((float)RTP_SEND_INTERVAL_SEC)));
 }
 
 /*

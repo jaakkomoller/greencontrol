@@ -2,8 +2,10 @@
 #define RTP_SERVER_H
 
 #define RTP_HEADER_SIZE 12
-#define U_CODE_SAMPLE_SIZE 1
-#define RTP_SAMPLE_INTERVAL_USEC 125
+#define SAMPLE_SIZE 1
+#define SAMPLING_FREQ 8000
+#define RTP_SEND_INTERVAL_SEC 0 
+#define RTP_SEND_INTERVAL_USEC 20000 
 
 /* Error codes */
 #define SOCK_CREATE_ERROR 1
@@ -29,5 +31,6 @@
  *
  */
 int rtp_server(FILE *soundfile, FILE *input, int control_port, struct sockaddr_in *dest4, int count4, struct sockaddr_in6 *dest6, int count6);
+
 
 #endif /* RTP_SERVER_H */

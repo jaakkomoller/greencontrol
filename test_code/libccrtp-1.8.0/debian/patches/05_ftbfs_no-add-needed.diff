@@ -1,0 +1,20 @@
+--- libccrtp-1.8.0.orig/demo/Makefile.am
++++ libccrtp-1.8.0/demo/Makefile.am
+@@ -31,6 +31,7 @@
+ noinst_PROGRAMS = rtpsend rtplisten rtphello rtpduphello audiorx audiotx \
+ 	ccrtptest $(srtp_src)
+ 
++LDADD = $(GNULIBS)
+ rtpsend_SOURCES = rtpsend.cpp
+ rtpsend_LDFLAGS = ../src/libccrtp1.la
+ 
+--- libccrtp-1.8.0.orig/demo/Makefile.in
++++ libccrtp-1.8.0/demo/Makefile.in
+@@ -301,6 +301,7 @@
+ @SRTP_OPENSSL_TRUE@ccsrtptest_SOURCES = ccsrtptest.cpp
+ @SRTP_GCRYPT_TRUE@ccsrtptest_LDFLAGS = ../src/libccrtp1.la
+ @SRTP_OPENSSL_TRUE@ccsrtptest_LDFLAGS = ../src/libccrtp1.la
++LDADD = $(GNULIBS)
+ rtpsend_SOURCES = rtpsend.cpp
+ rtpsend_LDFLAGS = ../src/libccrtp1.la
+ rtplisten_SOURCES = rtplisten.cpp

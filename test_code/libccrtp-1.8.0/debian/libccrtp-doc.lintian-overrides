@@ -1,0 +1,2 @@
+# override doxygen issues
+libccrtp-doc: manpage-has-bad-whatis-entry

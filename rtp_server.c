@@ -30,7 +30,8 @@ struct rtp_packet {
 	unsigned char payload[];
 };
 
-static int payload_size();
+static int get_payload_size();
+static unsigned long get_timestamp_per_packet_inc();
 static struct rtp_packet *create_rtp_packet(size_t payload_length);
 static int init_rtp_packet(struct rtp_packet *packet, unsigned seq_no, unsigned long timestamp, unsigned long ssrc);
 static unsigned long get_ssrc();
@@ -48,7 +49,7 @@ int rtp_server(FILE *soundfile, FILE *input, int control_port, struct sockaddr_i
 	struct timeval tv;
 	int readchars = 0;
 
-	packet = create_rtp_packet(payload_size());
+	packet = create_rtp_packet(get_payload_size());
 	if(packet == NULL) {
 		err = RTP_PACKET_ALLOC_ERROR;
 		goto exit_no_packet;
@@ -95,7 +96,7 @@ int rtp_server(FILE *soundfile, FILE *input, int control_port, struct sockaddr_i
 	tv.tv_sec = RTP_SEND_INTERVAL_SEC;
 	tv.tv_usec = RTP_SEND_INTERVAL_USEC;
 
-	readchars = fread (packet->payload, 1, payload_size(), soundfile);
+	readchars = fread (packet->payload, 1, get_payload_size(), soundfile);
 
 	while(1) {
 		if(readchars == 0)
@@ -113,7 +114,7 @@ int rtp_server(FILE *soundfile, FILE *input, int control_port, struct sockaddr_i
 			/* TODO Here we should read the other file descriptors
 			 * as well. */
 			n = sendto(sock, packet, RTP_HEADER_SIZE +
-				payload_size(), 0,
+				get_payload_size(), 0,
 				(const struct sockaddr *)&server,length);
 			if (n < 0) {
 				err = UDP_SEND_ERROR;
@@ -124,10 +125,10 @@ int rtp_server(FILE *soundfile, FILE *input, int control_port, struct sockaddr_i
 			fflush(stdout);
 
 			packet_no++;
-			timestamp++;
+			timestamp += get_timestamp_per_packet_inc();
 			/* TODO packet no as seq no might wrap */
-			init_rtp_packet(packet, packet_no, timestamp, ssrc);
-			readchars = fread(packet->payload, 1, payload_size(),
+			init_rtp_packet(packet, htons(packet_no), htonl(timestamp), ssrc);
+			readchars = fread(packet->payload, 1, get_payload_size(),
 				soundfile);
 			tv.tv_sec = RTP_SEND_INTERVAL_SEC;
 			tv.tv_usec = RTP_SEND_INTERVAL_USEC;
@@ -142,10 +143,15 @@ exit_no_packet:
 	return 0;
 }
 
-static inline int payload_size() {
+static inline int get_payload_size() {
 	return (int)(((float)SAMPLE_SIZE) * ((float)SAMPLING_FREQ) *
 		(((float)RTP_SEND_INTERVAL_USEC) / 1000000 +
 		((float)RTP_SEND_INTERVAL_SEC)));
+}
+
+static inline unsigned long get_timestamp_per_packet_inc() {
+	return (long)((((float)RTP_SEND_INTERVAL_USEC) / 1000000 +
+		((float)RTP_SEND_INTERVAL_SEC)) * (float)SAMPLING_FREQ);
 }
 
 /*

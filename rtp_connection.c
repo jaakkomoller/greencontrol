@@ -15,13 +15,12 @@
 
 static int bind_udp(int *sock);
 static int free_udp(int sock);
-int parse_destination(char *bindto, char *port, struct destination *dest);
+int parse_destination(char *addr, char *port, struct destination *dest);
 static int get_payload_size(struct rtp_connection *connection);
 static unsigned long get_timestamp_per_packet_inc(
 		struct rtp_connection *connection);
  
-int init_rtp_connection(char *destinations, char *ports, int howmany,
-		struct rtp_connection *connection,
+int init_rtp_connection(struct rtp_connection *connection,
 		unsigned long send_interval_sec,
 		unsigned long send_interval_usec,
 		unsigned int sampling_freq, unsigned int sample_size,
@@ -46,23 +45,9 @@ int init_rtp_connection(char *destinations, char *ports, int howmany,
 	
 	connection->data_input = data_input;
 
-	connection->destinations = malloc(howmany * sizeof(struct destination));
-	if(connection->destinations == NULL) {
-		err = RTP_CONNECTION_ALLOC_ERROR;
-		goto exit;
-	}
-
-	for(i = 0; i < howmany && err == 0; i++)
-		err = parse_destination(destinations, ports,
-			&connection->destinations[i]);
-	if(err != 0)
-		goto exit_free_dests;
-
 exit:
 	return err;
 
-exit_free_dests:
-	free(connection->destinations);
 exit_free_bind_sk:
 	close(connection->bind_sk);
 	return err;
@@ -70,7 +55,7 @@ exit_free_bind_sk:
 
 int rtp_connection_kick(struct rtp_connection *connection) {
 	
-	int n, err = 0, retval = 0;
+	int n, err = 0, retval = 0, i = 0;
 	struct hostent *hp;
 	char buffer[256];
 	struct rtp_packet *packet;
@@ -125,12 +110,17 @@ int rtp_connection_kick(struct rtp_connection *connection) {
 		else {
 			/* TODO Here we should read the other file descriptors
 			 * as well. */
-			n = sendto(connection->bind_sk, packet->start, packet->packet_size, 0,
-				(const struct sockaddr *)&connection->destinations[0].addr.addr_in,
-				connection->destinations[0].length);
-			if (n < 0) {
-				err = UDP_SEND_ERROR;
-				goto exit;
+			for(i = 0; i < connection->howmany; i++) {
+				n = sendto(connection->bind_sk, packet->start,
+					packet->packet_size, 0,
+					(const struct sockaddr *)
+					&connection->destinations[i].addr.
+					addr_in,
+					connection->destinations[i].length);
+				if (n < 0) {
+					err = UDP_SEND_ERROR;
+					goto exit;
+				}
 			}
 			
 			printf(".");
@@ -143,6 +133,11 @@ int rtp_connection_kick(struct rtp_connection *connection) {
 			init_rtp_packet(packet, htons(connection->seq_no),
 				htonl(connection->timestamp), connection->ssrc);
 			readchars = read(connection->data_input, packet->payload, packet->payload_size);
+
+			/* TODO Here we should take into account the
+			 * processing time taken to send the packets,
+			 * so that we don't introduce extra latency
+			 * between samples */
 			tv.tv_sec = connection->send_interval.tv_sec;
 			tv.tv_usec = connection->send_interval.tv_usec;
 		}
@@ -177,16 +172,17 @@ int free_rtp_connection(struct rtp_connection *connection) {
 	return err;
 }
 
-
-int parse_destination(char *bindto, char *port, struct destination *dest) {
+int parse_destination(char *addr, char *port, struct destination *dest) {
 	int err = 0;
 	struct hostent *hp;
-	
+
+printf("parsing %s, %s\n", addr, port);
+
 	dest->addr_family = AF_INET;
 	dest->length = sizeof(struct sockaddr_in);
 
 	dest->addr.addr_in.sin_family = AF_INET;
-	hp = gethostbyname(bindto);
+	hp = gethostbyname(addr);
 	if (hp == 0) {
 		err = UNKNOWN_HOST_ERROR;
 		goto exit;
@@ -197,6 +193,33 @@ int parse_destination(char *bindto, char *port, struct destination *dest) {
 	dest->addr.addr_in.sin_port = htons(atoi(port));
 
 exit:	
+	return err;
+}
+
+int set_destinations(char **addr, char **ports,
+		struct rtp_connection *connection, int howmany) {
+	
+	int err = 0, i = 0;
+
+	connection->destinations = malloc(howmany * sizeof(struct destination));
+	if(connection->destinations == NULL) {
+		err = RTP_CONNECTION_ALLOC_ERROR;
+		goto exit;
+	}
+
+	connection->howmany = howmany;
+
+	for(i = 0; i < howmany && err == 0; i++)
+		err = parse_destination(addr[i], ports[i],
+			&connection->destinations[i]);
+	if(err != 0)
+		goto exit_free_dests;
+
+exit:
+	return err;
+
+exit_free_dests:
+	free(connection->destinations);
 	return err;
 }
 

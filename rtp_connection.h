@@ -26,14 +26,16 @@ struct rtp_connection {
 	unsigned long ssrc, timestamp;
 
 	struct destination *destinations;
+	int howmany;
 };
 
-int init_rtp_connection(char *destinations, char *ports, int howmany,
-		struct rtp_connection *connection,
+int init_rtp_connection(struct rtp_connection *connection,
 		unsigned long send_interval_sec,
 		unsigned long send_interval_usec,
 		unsigned int sampling_freq, unsigned int sample_size,
 		int data_input);
+int set_destinations(char **addr, char **ports,
+		struct rtp_connection *connection, int howmany);
 
 /*
  * Reads the U-law encoded data and sends to clients. The soundfile is

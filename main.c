@@ -7,7 +7,7 @@ int main(int argc, char *argv[]) {
 
 	int err = 0;
 	int rtp_server_pipe[2]; // This pipes data from converter to rto server
-	struct rtp_connection rtp_output; // The RTP connection object
+	struct rtp_connection rtp_connection; // The RTP connection object
 
 	int fd[2];
 	err = pipe(fd);
@@ -24,7 +24,15 @@ int main(int argc, char *argv[]) {
 	if(argc == 2 && strcmp(argv[1], "rtptest") == 0) {
 		FILE *soundfile;
 		char fname[] = "test_data/original.au";
-		struct rtp_connection connection;
+		char *dests[2];
+		char *ports[2];
+		char destsarray[][100] = {{"localhost"}, {"localhost"}};
+		char portsarray[][100] = {{"1500"}, {"2000"}};
+		
+		dests[0] = &destsarray[0][0];
+		ports[0] = &portsarray[0][0];
+		dests[1] = &destsarray[1][0];
+		ports[1] = &portsarray[1][0];
 
 		int sock = 0;
 		struct sockaddr_in dest;
@@ -37,15 +45,16 @@ int main(int argc, char *argv[]) {
 			err = -1;
 			goto exit_system_err;
 		}
-		/* TODO Add support for multiple destinations */
-		init_rtp_connection("localhost", "1500", 1,
-			&connection, RTP_SEND_INTERVAL_SEC,
+		
+		set_destinations(dests, ports, &rtp_connection, 2);
+		init_rtp_connection(&rtp_connection, RTP_SEND_INTERVAL_SEC,
 			RTP_SEND_INTERVAL_USEC, RTP_SAMPLING_FREQ,
 			SAMPLE_SIZE, fileno(soundfile));
 
-		rtp_connection_kick(&connection);
+		// TODO fork within this function..
+		rtp_connection_kick(&rtp_connection);
 		
-		free_rtp_connection(&connection);
+		free_rtp_connection(&rtp_connection);
 
 		fclose(soundfile);
 	}

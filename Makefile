@@ -1,7 +1,7 @@
 CC=gcc
 CFLAGS=
 LDFLAGS=
-SOURCES=main.c rtp_connection.c rtp_packet.c util.c
+SOURCES=main.c rtp_connection.c rtp_packet.c util.c mp3fetcher.c
 OBJECTS=$(SOURCES:.c=.o)
 EXECUTABLE=RadioStreamer
 

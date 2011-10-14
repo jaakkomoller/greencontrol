@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "rtp_connection.h"
+#include "mp3fetcher.h"
 #include "util.h"
 
 int main(int argc, char *argv[]) {
@@ -59,6 +60,10 @@ int main(int argc, char *argv[]) {
 		fclose(soundfile);
 	}
 
+	if(argc == 2 && strcmp(argv[1], "fetcher") == 0) {
+	fetch_file();
+
+	}
 
 
 exit_system_err:

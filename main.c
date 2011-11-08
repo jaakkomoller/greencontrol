@@ -61,7 +61,8 @@ int main(int argc, char *argv[]) {
 	}
 
 	if(argc == 2 && strcmp(argv[1], "fetcher") == 0) {
-	fetch_file();
+	fetch_station_info();
+	//fetch_file();
 
 	}
 

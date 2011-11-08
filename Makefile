@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS=
+CFLAGS=-g
 LDFLAGS=
 SOURCES=main.c rtp_connection.c rtp_packet.c util.c mp3fetcher.c converter.c
 OBJECTS=$(SOURCES:.c=.o)

@@ -16,78 +16,30 @@
 #define MAXLINE 128
 #define SA struct sockaddr
 
-#define SHOUTCAST "www.shoutcast.com/radio/soundtracks"
+//#define SHOUTCAST "www.shoutcast.com/radio/soundtracks"
 #define REQUEST "GET /radio/soundtracks HTTP/1.0\r\nHOST:www.shoutcast.com\r\n\r\n"
 #define MAXBUFFER 1024
 
+#define PLAYLISTURL "yp.shoutcast.com/sbin/tunein-station.pls?id="
+
+void fetch_playlist(char*);
+int fetch_page(char*, char*,char*,char*);
+
+
+
 int fetch_station_info()
 {
-
-struct addrinfo hints, *i ,*retaddr;
-int n,m,sockfd;
-char buffer[MAXBUFFER];
-int status;
-
 printf("Fetching information from shoutcast.com and generating menu items\n");
 
-//define hints
-memset(&hints, 0, sizeof hints);
-hints.ai_family = AF_UNSPEC; // IPv6 or IPv4 protocol independent
-hints.ai_socktype = SOCK_STREAM; //TCP
-
-//hostname resolving
-if (status=getaddrinfo("www.shoutcast.com","80", &hints, &retaddr) != 0)
-{
-	//printf("an error occured with getaddrinfo\n");
-	fprintf(stderr, "getaddrinfo error: %s\n", gai_strerror(status));
-}
-
-//loop through the resuls and create a socket and connect()
-for(i = retaddr; i != NULL; i = i->ai_next)
-{
-	if ((sockfd = socket(i->ai_family, i->ai_socktype,i->ai_protocol)) == -1)
-	{
-		perror("error when creating a socket");
-		continue;
-	}
-
-	if (connect(sockfd, i->ai_addr, i->ai_addrlen) == -1) {
-	close(sockfd);
-	perror("connect");
-	continue;
-	}
-
-break;
-}
+char page[50000];
+fetch_page("www.shoutcast.com","80",REQUEST,page);
+//printf("%s",page);
 
 
-//printf("socket:%d\n",sockfd);
-
-;
-
-if ((m = send(sockfd,REQUEST,strlen(REQUEST),0))<0) /* HTTP GET */
-perror("http GET error");
-char html[50000];
-
-while ( (n = recv(sockfd, buffer, MAXBUFFER-1,0)) > 0)  /* read until n is set to 0 */
-{
-
-buffer[n] = 0; /* null terminate */
-if (snprintf(html+strlen(html),n,buffer)==EOF) /* write current buffer to string */
-perror("sprintf error");
-
-if (n < 0)
-perror("read error");
-
-}
-
-//printf("%s",html);
-
+//parse radio stations from html page
 
 regex_t    preg;
-//   char       *string = "http://yp.shoutcast.com/sbin/tunein-station.pls?id=1283288\" title=\"Radio Rivendell - The Fantasy Station\" class=\"playbutton playimage\" name=\"Radio Rivendell - The Fantasy Station\" id=\"1283288\"></a>";
-char *string = &html;
-
+//char *string = &html;
 char       *pattern = "on playimage\" name=\"\\(.*\\)\"></a>";
 int        rc;
 size_t     nmatch = 2;
@@ -106,41 +58,40 @@ char station4[100]="";
 int j;
 for(j=1;j<5;j++)
 {
-   if (0 != (rc = regexec(&preg, string, nmatch, pmatch, 0))) {
+   if (0 != (rc = regexec(&preg, page, nmatch, pmatch, 0))) {
       printf("Failed to match\n");
    }
    else{
 
 if (j==1)
 {
-	sprintf(station1,"%.*s", pmatch[1].rm_eo - pmatch[1].rm_so, &string[pmatch[1].rm_so]);
+	sprintf(station1,"%.*s", pmatch[1].rm_eo - pmatch[1].rm_so, &page[pmatch[1].rm_so]);
 }
 if (j==2)
 {
-	sprintf(station2,"%.*s", pmatch[1].rm_eo - pmatch[1].rm_so, &string[pmatch[1].rm_so]);
+	sprintf(station2,"%.*s", pmatch[1].rm_eo - pmatch[1].rm_so, &page[pmatch[1].rm_so]);
 }
 if (j==3)
 {
-	sprintf(station3,"%.*s", pmatch[1].rm_eo - pmatch[1].rm_so, &string[pmatch[1].rm_so]);
+	sprintf(station3,"%.*s", pmatch[1].rm_eo - pmatch[1].rm_so, &page[pmatch[1].rm_so]);
 }
 if (j==4)
 {
-	sprintf(station4,"%.*s", pmatch[1].rm_eo - pmatch[1].rm_so, &string[pmatch[1].rm_so]);
+	sprintf(station4,"%.*s", pmatch[1].rm_eo - pmatch[1].rm_so, &page[pmatch[1].rm_so]);
 }
 
-//printf("%.*s\n",  pmatch[1].rm_eo - pmatch[1].rm_so, &string[pmatch[1].rm_so]);
+//printf("%.*s\n",  pmatch[1].rm_eo - pmatch[1].rm_so, &page[pmatch[1].rm_so]);
 
 
-string[pmatch[1].rm_so-1]="0"; //reset one bit of the string so regexec does not match the same line again.
+page[pmatch[1].rm_so-1]="0"; //reset one bit of the string so regexec does not match the same line again.
 
   }
 }
 
 //freeing of memory
 regfree(&preg);
-freeaddrinfo(retaddr); // Release the storage allocated by getaddrinfo() call
 
-
+//Generate menu
 
 char menu;
 char selection;
@@ -150,7 +101,7 @@ do {
   	printf("\n                              RadioStreamer");
 	printf("\n##############################################################################");
   	printf("\n[1] \"%s\"",station1);
-  	printf("\n[2] \2%s\"",station2);
+  	printf("\n[2] \"%s\"",station2);
   	printf("\n[3] \"%s\"",station3);
    	printf("\n[4] \"%s\"",station4);
         printf("\n##############################################################################");
@@ -166,6 +117,7 @@ switch(selection) {
 
 	case '1':
 	printf("\nChannel 1 was chosen\n");
+	fetch_playlist(station1);
 	break;
 
       	case '2':
@@ -199,10 +151,94 @@ switch(selection) {
 
 printf("\nIt's over\n");
 
-return 0;
+exit(0);
 }
 
 
+void fetch_playlist(char* station)
+{
+char* page;
+fetch_page("yp.shoutcast.com","80","GET http://yp.shoutcast.com/sbin/tunein-station.pls?id=614375 HTTP/1.0\r\n\r\n",page);
+printf("%s\n",page);
+
+//parse
+
+
+
+
+//fetch_file (first, try to connect)
+
+}
+
+
+
+
+
+int fetch_page(char* URL, char* PORT,char* HTTP_GET,char* RECEIVED_PAGE)
+{
+struct addrinfo hints, *i ,*retaddr;
+int n,m,sockfd;
+char buffer[MAXBUFFER];
+int status;
+
+//define hints
+memset(&hints, 0, sizeof hints);
+hints.ai_family = AF_UNSPEC; // IPv6 or IPv4 protocol independent
+hints.ai_socktype = SOCK_STREAM; //TCP
+
+//hostname resolving
+if (status=getaddrinfo(URL,PORT, &hints, &retaddr) != 0)
+{
+        //printf("an error occured with getaddrinfo\n");
+        fprintf(stderr, "getaddrinfo error: %s\n", gai_strerror(status));
+	return 1;
+}
+
+//loop through the resuls and create a socket and connect()
+for(i = retaddr; i != NULL; i = i->ai_next)
+{
+        if ((sockfd = socket(i->ai_family, i->ai_socktype,i->ai_protocol)) == -1)
+        {
+                perror("error when creating a socket");
+                continue;
+        }
+
+        if (connect(sockfd, i->ai_addr, i->ai_addrlen) == -1) {
+        close(sockfd);
+        perror("connect");
+        continue;
+        }
+
+break;
+}
+//printf("socket:%d\n",sockfd);
+
+//freeing of memory
+freeaddrinfo(retaddr); // Release the storage allocated by getaddrinfo() call
+
+
+if ((m = send(sockfd,HTTP_GET,strlen(HTTP_GET),0))<0) /* HTTP GET */
+{
+perror("http GET error");
+return 1;
+}
+
+while ( (n = recv(sockfd, buffer, MAXBUFFER-1,0)) > 0)  /* read until n is set to 0 */
+{
+buffer[n] = 0; /* null terminate */
+if (snprintf(RECEIVED_PAGE+strlen(RECEIVED_PAGE),n,buffer)==EOF) /* write current buffer to string */
+{
+perror("sprintf error");
+return 1;
+}
+if (n < 0)
+{
+perror("read error");
+return 1;
+}
+}
+
+}
 
 void fetch_file()
 {

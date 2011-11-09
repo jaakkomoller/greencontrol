@@ -3,6 +3,10 @@
 
 
 int fetch_file(char*,char*);
+void fetch_playlist(char*);
+int fetch_page(char*, char*,char*,char*);
+char* parseString(char*);
+int fetch_station_info();
 
 #endif
 

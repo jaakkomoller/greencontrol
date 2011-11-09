@@ -19,9 +19,6 @@
 #define MAXBUFFER 1024
 
 
-void fetch_playlist(char*);
-int fetch_page(char*, char*,char*,char*);
-char* parseString(char*);
 
 /*
 * Fetches radio station information and generates menu items based on this info
@@ -171,12 +168,12 @@ switch(selection) {
         break;
 
   	case 'P':
-	printf("\nPause");
+	printf("\nPause\n");
 
         break;
 
   	case 'C':
-	printf("\nContinue");
+	printf("\nContinue\n");
         break;
 
 }
@@ -367,6 +364,7 @@ return 1;
 
 int fetch_file(char* IP,char* PORT)
 {
+//Try to connect to a certain IP:PORT
 
 char buffer_orig[MAXLINE + 1];
 struct sockaddr_in servaddr;
@@ -413,14 +411,14 @@ char buffer2[2];
 
 int selectid;
 
-FD_ZERO(&readsetfds2); /* clears all bits in the set */
+FD_ZERO(&readsetfds2); /* clear all bits in the set */
 FD_ZERO(&readsetfds);
 
 FD_SET(sockfd, &readsetfds); /* Turn on bit for fd in the set */
 FD_SET(0, &readsetfds);
 
 
-
+//Wait for some input
 for(;;)
 {
 readsetfds2 = readsetfds;
@@ -435,7 +433,7 @@ selectid=select(sockfd+1, &readsetfds2, NULL, NULL,NULL);
 
 	if (selectid > 0) /* something to read */
 	{
-		if (FD_ISSET(sockfd, &readsetfds2))
+		if (FD_ISSET(sockfd, &readsetfds2)) //MP3 stream
   		{
 
 			if ((  n = recv(sockfd, buffer, 1023,0))<0)
@@ -444,11 +442,11 @@ selectid=select(sockfd+1, &readsetfds2, NULL, NULL,NULL);
 			return 1;
   			}
 
-			//if (write(1, buffer, n) <0) break;
+			//if (write(1, buffer, n) <0) break; //with a pipe?
 
 		}
 
-		if (FD_ISSET(0, &readsetfds2))
+		if (FD_ISSET(0, &readsetfds2)) //USER INPUT
                 {
 			printf("Key pressed...\n");;
                 	return 2;
@@ -463,8 +461,8 @@ selectid=select(sockfd+1, &readsetfds2, NULL, NULL,NULL);
 
 
 
-//if ((x=close(sockfd))<0)
-//perror("error when closing the socket");
+if ((x=close(sockfd))<0)
+perror("error when closing the socket");
 
 
 }

@@ -95,6 +95,8 @@ regfree(&preg);
 
 char menu;
 char selection;
+int selected=0;
+
 do {
 
 	printf("\n##############################################################################");
@@ -116,33 +118,65 @@ selection=toupper(menu);
 switch(selection) {
 
 	case '1':
-	printf("\nChannel 1 was chosen\n");
-	fetch_playlist(&station1);
+	printf("\nChannel [1] chosed\n");
+	selected=1;
+	fetch_playlist(station1);
 	break;
 
       	case '2':
-        printf("\nChannel 2 was chosen\n");
+        printf("\nChannel [2] chosed\n");
+	selected=2;
 	fetch_playlist(station2);
         break;
 
 	case '3':
+	printf("\nChannel [3] chosed\n");
+	selected=3;
 	fetch_playlist(station3);
         break;
 
   	case '4':
+	printf("\nChannel [4] chosed\n");
+	selected=4;
 	fetch_playlist(station4);
         break;
 
 	case 'N':
+	selected=selected+1;
+
+	if (selected==5)
+	selected=1;
+
+ 	if (selected==1)
+	{
+	printf("\nChannel [1] chosed\n");
+	fetch_playlist(station1);
+	}
+        if (selected==2)
+        {
+	printf("\nChannel [2] chosed\n");
+        fetch_playlist(station2);
+	}
+	if (selected==3)
+        {
+	printf("\nChannel [3] chosed\n");
+        fetch_playlist(station3);
+	}
+	if (selected==4)
+        {
+	printf("\nChannel [4] chosed\n");
+        fetch_playlist(station4);
+	}
 
         break;
 
   	case 'P':
+	printf("\nPause");
 
         break;
 
   	case 'C':
-	printf("\ncontinue");
+	printf("\nContinue");
         break;
 
 }
@@ -171,23 +205,64 @@ char get[150]="";
 sprintf(get,"GET http://yp.shoutcast.com/sbin/tunein-station.pls?id=%s HTTP/1.0\r\n\r\n",parsed);
 
 fetch_page("yp.shoutcast.com","80",get,page);
-
-printf("%s\n",page);
-
+//printf("%s\n",page);
 
 
 
-//parse playlist file
+//parse playlist file to get IP and PORT
+
+regex_t    preg;
+char       *pattern = "=http://\\(.*\\)";
+int        rc;
+size_t     nmatch = 2;
+regmatch_t pmatch[2];
 
 
-int fetch=0;
+   if (0 != (rc = regcomp(&preg, pattern, REG_NEWLINE))) {
+      exit(EXIT_FAILURE);
+   }
 
-//fetch_file (first try to connect)
+char ipandport[100]="";
 
-fetch=fetch_file("94.23.51.96","8000");
+//First parse ip and port from playlist, then try to connect (and repeat with different ip+port if necessary)
+while(regexec(&preg, page, nmatch, pmatch, 0)==0 )
+{
+ipandport[100]="";
+sprintf(ipandport,"%.*s", pmatch[1].rm_eo - pmatch[1].rm_so, &page[pmatch[1].rm_so]);
+
+char * ip="";
+char * port="";
+
+ip=strtok(ipandport,":");
+port=strtok(NULL,":");
+
+page[pmatch[1].rm_so-1]="0"; //reset one bit of the string so regexec does not match the same line again.
+
+
+//fetch_file
+int fetch=fetch=fetch_file(ip,port);
+
+if (fetch==1)
+{
+continue;
+}
+
+if (fetch==2)
+{
+//freeing of memory
+regfree(&preg);
+break;
+}
+
+}
+
+//freeing of memory
+regfree(&preg);
 
 
 }
+
+
 
 /*
 * Parses a string by delimeter
@@ -299,7 +374,10 @@ int sockfd, n,m,x,numbytes;
 
 
 if ( (sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0) /* create a socket, SOCK_STREAM -> TCP */
+{
 perror("socket error");
+return 1;
+}
 
 bzero(&servaddr, sizeof(servaddr));
 servaddr.sin_family = AF_INET;
@@ -331,7 +409,7 @@ fd_set readsetfds;
 fd_set readsetfds2; /* temp*/
 
 char buffer[1024];
-
+char buffer2[2];
 
 int selectid;
 
@@ -339,7 +417,7 @@ FD_ZERO(&readsetfds2); /* clears all bits in the set */
 FD_ZERO(&readsetfds);
 
 FD_SET(sockfd, &readsetfds); /* Turn on bit for fd in the set */
-
+FD_SET(0, &readsetfds);
 
 
 
@@ -363,12 +441,21 @@ selectid=select(sockfd+1, &readsetfds2, NULL, NULL,NULL);
 			if ((  n = recv(sockfd, buffer, 1023,0))<0)
   			{
   			perror("recv");
-			return 2;
+			return 1;
   			}
 
-			if (write(1, buffer, n) <0) break;
+			//if (write(1, buffer, n) <0) break;
 
 		}
+
+		if (FD_ISSET(0, &readsetfds2))
+                {
+			printf("Key pressed...\n");;
+                	return 2;
+                }
+
+
+
 	}
 
 
@@ -378,8 +465,6 @@ selectid=select(sockfd+1, &readsetfds2, NULL, NULL,NULL);
 
 //if ((x=close(sockfd))<0)
 //perror("error when closing the socket");
-
-
 
 
 }

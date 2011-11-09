@@ -88,7 +88,7 @@ page[pmatch[1].rm_so-1]="0"; //reset one bit of the string so regexec does not m
 //freeing of memory
 regfree(&preg);
 
-//Generate menu
+//Generate a menu
 
 char menu;
 char selection;
@@ -237,7 +237,7 @@ page[pmatch[1].rm_so-1]="0"; //reset one bit of the string so regexec does not m
 
 
 //fetch_file
-int fetch=fetch=fetch_file(ip,port);
+int fetch=fetch_file(ip,port);
 
 if (fetch==1)
 {

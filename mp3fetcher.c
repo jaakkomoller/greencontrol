@@ -10,28 +10,28 @@
 #include <netdb.h> /* for hints*/
 #include <regex.h>
 #include <stdlib.h>
-
 #include "mp3fetcher.h"
 
 #define MAXLINE 128
 #define SA struct sockaddr
 
-//#define SHOUTCAST "www.shoutcast.com/radio/soundtracks"
 #define REQUEST "GET /radio/soundtracks HTTP/1.0\r\nHOST:www.shoutcast.com\r\n\r\n"
 #define MAXBUFFER 1024
 
-#define PLAYLISTURL "yp.shoutcast.com/sbin/tunein-station.pls?id="
 
 void fetch_playlist(char*);
 int fetch_page(char*, char*,char*,char*);
+char* parseString(char*);
 
-
+/*
+* Fetches radio station information and generates menu items based on this info
+*/
 
 int fetch_station_info()
 {
 printf("Fetching information from shoutcast.com and generating menu items\n");
 
-char page[50000];
+char page[50000]="";
 fetch_page("www.shoutcast.com","80",REQUEST,page);
 //printf("%s",page);
 
@@ -117,19 +117,20 @@ switch(selection) {
 
 	case '1':
 	printf("\nChannel 1 was chosen\n");
-	fetch_playlist(station1);
+	fetch_playlist(&station1);
 	break;
 
       	case '2':
         printf("\nChannel 2 was chosen\n");
+	fetch_playlist(station2);
         break;
 
 	case '3':
-
+	fetch_playlist(station3);
         break;
 
   	case '4':
-
+	fetch_playlist(station4);
         break;
 
 	case 'N':
@@ -155,13 +156,28 @@ exit(0);
 }
 
 
+/*
+* Fetches and parses a playlist html page and tries to call fetch_file() function (possibly several times)
+*/
 void fetch_playlist(char* station)
 {
-char* page;
-fetch_page("yp.shoutcast.com","80","GET http://yp.shoutcast.com/sbin/tunein-station.pls?id=614375 HTTP/1.0\r\n\r\n",page);
+char page[10000]="";
+char *parsed="";
+
+parsed = parseString(station);
+
+//create http get request
+char get[150]="";
+sprintf(get,"GET http://yp.shoutcast.com/sbin/tunein-station.pls?id=%s HTTP/1.0\r\n\r\n",parsed);
+
+fetch_page("yp.shoutcast.com","80",get,page);
+
 printf("%s\n",page);
 
-//parse
+
+
+
+//parse playlist file
 
 
 
@@ -170,10 +186,37 @@ printf("%s\n",page);
 
 }
 
+/*
+* Parses a string by delimeter
+*/
+char* parseString(char* MESSAGE)
+{
+char id[15]="";
+regex_t    preg;
+char       *pattern ="\" id=\"\\(.*\\)";
+int        rc;
+size_t     nmatch = 2;
+regmatch_t pmatch[2];
 
 
+   if (0 != (rc = regcomp(&preg, pattern, REG_NEWLINE))) {
+      exit(EXIT_FAILURE);
+   }
+
+   if (0 != (rc = regexec(&preg, MESSAGE, nmatch, pmatch, 0))) {
+      printf("Failed to match\n");
+   }
+
+sprintf(id,"%.*s", pmatch[1].rm_eo - pmatch[1].rm_so, &MESSAGE[pmatch[1].rm_so]);
+regfree(&preg);
+
+	return id;
+}
 
 
+/*
+* Fetches an html page (HTTP GET) and creates a string variable from the page
+*/
 int fetch_page(char* URL, char* PORT,char* HTTP_GET,char* RECEIVED_PAGE)
 {
 struct addrinfo hints, *i ,*retaddr;
@@ -239,6 +282,10 @@ return 1;
 }
 
 }
+
+/*
+* Fetches an mp3 file stream
+*/
 
 void fetch_file()
 {

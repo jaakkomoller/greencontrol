@@ -115,25 +115,25 @@ selection=toupper(menu);
 switch(selection) {
 
 	case '1':
-	printf("\nChannel [1] chosed\n");
+	printf("\nChannel [1] was chosen\n");
 	selected=1;
 	fetch_playlist(station1);
 	break;
 
       	case '2':
-        printf("\nChannel [2] chosed\n");
+        printf("\nChannel [2] was chosen\n");
 	selected=2;
 	fetch_playlist(station2);
         break;
 
 	case '3':
-	printf("\nChannel [3] chosed\n");
+	printf("\nChannel [3] was chosen\n");
 	selected=3;
 	fetch_playlist(station3);
         break;
 
   	case '4':
-	printf("\nChannel [4] chosed\n");
+	printf("\nChannel [4] was chosen\n");
 	selected=4;
 	fetch_playlist(station4);
         break;
@@ -146,22 +146,22 @@ switch(selection) {
 
  	if (selected==1)
 	{
-	printf("\nChannel [1] chosed\n");
+	printf("\nChannel [1] was chosen\n");
 	fetch_playlist(station1);
 	}
         if (selected==2)
         {
-	printf("\nChannel [2] chosed\n");
+	printf("\nChannel [2] was chosen\n");
         fetch_playlist(station2);
 	}
 	if (selected==3)
         {
-	printf("\nChannel [3] chosed\n");
+	printf("\nChannel [3] was chosen\n");
         fetch_playlist(station3);
 	}
 	if (selected==4)
         {
-	printf("\nChannel [4] chosed\n");
+	printf("\nChannel [4] was chosen\n");
         fetch_playlist(station4);
 	}
 

@@ -180,9 +180,12 @@ printf("%s\n",page);
 //parse playlist file
 
 
+int fetch=0;
 
+//fetch_file (first try to connect)
 
-//fetch_file (first, try to connect)
+fetch=fetch_file("94.23.51.96","8000");
+
 
 }
 
@@ -287,7 +290,7 @@ return 1;
 * Fetches an mp3 file stream
 */
 
-void fetch_file()
+int fetch_file(char* IP,char* PORT)
 {
 
 char buffer_orig[MAXLINE + 1];
@@ -300,20 +303,29 @@ perror("socket error");
 
 bzero(&servaddr, sizeof(servaddr));
 servaddr.sin_family = AF_INET;
-servaddr.sin_port = htons(9000); /* http server */
+servaddr.sin_port = htons(atoi(PORT)); /* http server */
 
-if (inet_pton(AF_INET, "83.145.128.37", &servaddr.sin_addr) <= 0) /* Convert an address from ASCII string format to binary */
+if (inet_pton(AF_INET, IP, &servaddr.sin_addr) <= 0) /* Convert an address from ASCII string format to binary */
+{
 perror("inet_pton error");
+return 1;
+}
 
 if (connect(sockfd, (SA *) &servaddr, sizeof(servaddr)) < 0) /* connect to server */
+{
 perror("connect error");
+return 1;
+}
 
+//create http get request
+char get[150]="";
+sprintf(get,"GET / HTTP/1.1\r\nHost: %s:%s\r\nUser-Agent: uberclient/10\r\nRange: bytes=0-\r\n\r\n",IP,PORT);
 
-
-
-if ((m = send(sockfd, "GET / HTTP/1.1\r\nHost: 83.145.128.37:9000\r\nUser-Agent: uberclient/10\r\nRange: bytes=0-\r\n\r\n", MAXLINE,0))<0) /* HTTP GET */
+if ((m = send(sockfd, get, MAXLINE,0))<0) /* HTTP GET */
+{
 perror("http GET error");
-
+return 1;
+}
 
 fd_set readsetfds;
 fd_set readsetfds2; /* temp*/
@@ -339,7 +351,7 @@ selectid=select(sockfd+1, &readsetfds2, NULL, NULL,NULL);
 	if (selectid <= 0)
 	{
 	perror("Select");
-
+	return 1;
 	}
 
 
@@ -351,6 +363,7 @@ selectid=select(sockfd+1, &readsetfds2, NULL, NULL,NULL);
 			if ((  n = recv(sockfd, buffer, 1023,0))<0)
   			{
   			perror("recv");
+			return 2;
   			}
 
 			if (write(1, buffer, n) <0) break;

@@ -2,7 +2,7 @@
 #define MP3FETCHER_H
 
 
-void fetch_file();
+int fetch_file(char*,char*);
 
 #endif
 

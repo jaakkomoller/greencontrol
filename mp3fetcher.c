@@ -17,7 +17,7 @@
 
 #define REQUEST "GET /radio/soundtracks HTTP/1.0\r\nHOST:www.shoutcast.com\r\n\r\n"
 #define MAXBUFFER 1024
-
+#define FRAMESIZE 417
 
 
 /*
@@ -29,7 +29,26 @@ int fetch_station_info()
 printf("Fetching information from shoutcast.com and generating menu items\n");
 
 char page[50000]="";
-fetch_page("www.shoutcast.com","80",REQUEST,page);
+int status, i;
+
+for (i=0;i<10;i++)
+{
+	status = fetch_page("www.shoutcast.com","80",REQUEST,page);
+
+	if (status==0)
+	{
+		break;
+	}
+
+	if (i==9)
+	{
+		printf("Cannot fetch the channel info...\n");
+		exit(1);
+	}
+
+	sleep(1);
+}
+
 //printf("%s",page);
 
 
@@ -357,7 +376,7 @@ perror("read error");
 return 1;
 }
 }
-
+return 0;
 }
 
 /*
@@ -407,8 +426,8 @@ return 1;
 fd_set readsetfds;
 fd_set readsetfds2; /* temp*/
 
-char buffer[418];//[1024];
-char new_buffer[418];
+char buffer[FRAMESIZE+1];//[1024];
+char new_buffer[FRAMESIZE+1];
 
 int selectid;
 
@@ -462,9 +481,9 @@ selectid=select(sockfd+1, &readsetfds2, NULL, NULL,NULL);
 
 		sum=read_bytes+read_bytes_prev; //Calculate the maximum amount of data that can be written to the buffer. It consists of the data that was just read and the older data, which is in the buffer already, that was not needed before to achieve a full frame.
 
-		if (sum >= 417) // A full mp3 frame fetched so write it to the buffer
+		if (sum >= FRAMESIZE) // A full mp3 frame fetched so write it to the buffer
 		{
-			write(pipefd[1],buffer,417-read_bytes_prev);
+//			write(pipefd[1],buffer,FRAMESIZE-read_bytes_prev);
 			count++;
 
 			if (count >=5) // Call the transcoder function when there are 5 full frames in the buffer
@@ -474,7 +493,7 @@ selectid=select(sockfd+1, &readsetfds2, NULL, NULL,NULL);
 
 			extra_bytes:  // Calculate the extra bytes and write them to the buffer too
 
-			read_bytes_prev=sum-(417-read_bytes_prev);
+			read_bytes_prev=sum-(FRAMESIZE-read_bytes_prev);
 
 			if (read_bytes-read_bytes_prev<-1)
 			{
@@ -487,7 +506,7 @@ selectid=select(sockfd+1, &readsetfds2, NULL, NULL,NULL);
                         		new_buffer[j] = buffer[read_bytes-read_bytes_prev+1+j];
                 		}
 
-				write(pipefd[1],new_buffer,read_bytes_prev);
+//				write(pipefd[1],new_buffer,read_bytes_prev);
 			}
 
 			continue;
@@ -495,19 +514,18 @@ selectid=select(sockfd+1, &readsetfds2, NULL, NULL,NULL);
 		}
 
 
-		else // (sum <417)
+		else // (sum <FRAMESIZE)
                 {
 
-        	        write(pipefd[1],buffer,read_bytes); // Add these bytes to the buffer. It's not a full frame though
+//        	        write(pipefd[1],buffer,read_bytes); // Add these bytes to the buffer. It's not a full frame though
                 	read_bytes_prev=sum;
 
 			continue;
     		}
 
-								
 		call_transcoder:
                 {
-		        //call_transcoder(pipefd,417*count); // In the other end just read from pipefd[0]
+//			call_transcoder(pipefd,417*count); // In the other end just read from pipefd[0]
 			count=0;
 			goto extra_bytes;  // Check if there were some more bytes available
                 }

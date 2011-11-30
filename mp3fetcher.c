@@ -525,11 +525,11 @@ selectid=select(sockfd+1, &readsetfds2, NULL, NULL,NULL);
 		call_transcoder:
                 {
 
-			if (ispaused==1) // pause is pressed so do not call the tanscoder funtion
+			if (ispaused==1) // pause is pressed so do not call the transcoder fucntion
 			{
 //				TODO:  clear the pipe, pipefd[0] & 417*count
 			}
-			else // pause is not pressed so call the transcoder funtion
+			else // pause is not pressed so call the transcoder function
 			{
 //				call_transcoder(pipefd,417*count); // In the other end just read from pipefd[0]
 				count=0;

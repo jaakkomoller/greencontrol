@@ -94,6 +94,8 @@ char menu;
 char selection;
 int selected=0;
 
+
+
 do {
 
 	printf("\n##############################################################################");
@@ -177,7 +179,7 @@ switch(selection) {
         break;
 
 }
-  } while(selection != 'E');
+} while(selection != 'E');
 
 
 
@@ -366,7 +368,6 @@ int fetch_file(char* IP,char* PORT)
 {
 //Try to connect to a certain IP:PORT
 
-char buffer_orig[MAXLINE + 1];
 struct sockaddr_in servaddr;
 int sockfd, n,m,x,numbytes;
 
@@ -406,8 +407,8 @@ return 1;
 fd_set readsetfds;
 fd_set readsetfds2; /* temp*/
 
-char buffer[1024];
-char buffer2[2];
+char buffer[418];//[1024];
+char new_buffer[418];
 
 int selectid;
 
@@ -417,6 +418,23 @@ FD_ZERO(&readsetfds);
 FD_SET(sockfd, &readsetfds); /* Turn on bit for fd in the set */
 FD_SET(0, &readsetfds);
 
+
+int pipefd[2];
+
+
+if (pipe(pipefd) == -1)
+{
+        perror("Pipe");
+	return 1;
+}
+
+
+
+int read_bytes=0;
+int read_bytes_prev=0;
+int sum;
+
+int count=0;
 
 //Wait for some input
 for(;;)
@@ -436,13 +454,64 @@ selectid=select(sockfd+1, &readsetfds2, NULL, NULL,NULL);
 		if (FD_ISSET(sockfd, &readsetfds2)) //MP3 stream
   		{
 
-			if ((  n = recv(sockfd, buffer, 1023,0))<0)
-  			{
-  			perror("recv");
-			return 1;
-  			}
+		if ((  read_bytes = recv(sockfd, buffer, 417,0))<0)
+  		{
+  		perror("recv");
+		return 1;
+  		}
 
-			//if (write(1, buffer, n) <0) break; //with a pipe?
+		sum=read_bytes+read_bytes_prev; //Calculate the maximum amount of data that can be written to the buffer. It consists of the data that was just read and the older data, which is in the buffer already, that was not needed before to achieve a full frame.
+
+		if (sum >= 417) // A full mp3 frame fetched so write it to the buffer
+		{
+			write(pipefd[1],buffer,417-read_bytes_prev);
+			count++;
+
+			if (count >=5) //call the transcoder function when there are 5 full frames in the buffer
+			{
+				goto call_transcoder;
+			}
+
+			extra_bytes:  // calculate the extra bytes and write them to the buffer too
+
+			read_bytes_prev=sum-(417-read_bytes_prev);
+
+			if (read_bytes-read_bytes_prev<-1)
+			{
+			}
+			else
+			{
+				int j;
+				for(j=0;j<read_bytes_prev;j++)
+                		{
+                        		new_buffer[j] = buffer[read_bytes-read_bytes_prev+1+j];
+                		}
+
+				write(pipefd[1],new_buffer,read_bytes_prev);
+			}
+
+			continue;
+
+		}
+
+
+		else // (sum <417)
+                {
+
+        	        write(pipefd[1],buffer,read_bytes);	//Add these bytes to the buffer. It's not a full frame though
+                	read_bytes_prev=sum;
+
+			continue;
+    		}
+
+								
+		call_transcoder:
+                {
+		        //call_transcoder(pipe_fd,417*count); //in the other end just read from pipefd[0]
+			count=0;
+			goto extra_bytes;  //check if there was some more bytes available
+                }
+
 
 		}
 

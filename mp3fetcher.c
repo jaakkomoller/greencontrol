@@ -12,10 +12,9 @@
 #include <stdlib.h>
 #include "mp3fetcher.h"
 
-#define MAXLINE 128
 #define SA struct sockaddr
-
 #define REQUEST "GET /radio/soundtracks HTTP/1.0\r\nHOST:www.shoutcast.com\r\n\r\n"
+#define MAXLINE 128
 #define MAXBUFFER 1024
 #define FRAMESIZE 417
 

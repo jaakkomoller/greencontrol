@@ -467,12 +467,12 @@ selectid=select(sockfd+1, &readsetfds2, NULL, NULL,NULL);
 			write(pipefd[1],buffer,417-read_bytes_prev);
 			count++;
 
-			if (count >=5) //call the transcoder function when there are 5 full frames in the buffer
+			if (count >=5) // Call the transcoder function when there are 5 full frames in the buffer
 			{
 				goto call_transcoder;
 			}
 
-			extra_bytes:  // calculate the extra bytes and write them to the buffer too
+			extra_bytes:  // Calculate the extra bytes and write them to the buffer too
 
 			read_bytes_prev=sum-(417-read_bytes_prev);
 
@@ -498,7 +498,7 @@ selectid=select(sockfd+1, &readsetfds2, NULL, NULL,NULL);
 		else // (sum <417)
                 {
 
-        	        write(pipefd[1],buffer,read_bytes);	//Add these bytes to the buffer. It's not a full frame though
+        	        write(pipefd[1],buffer,read_bytes); // Add these bytes to the buffer. It's not a full frame though
                 	read_bytes_prev=sum;
 
 			continue;
@@ -507,9 +507,9 @@ selectid=select(sockfd+1, &readsetfds2, NULL, NULL,NULL);
 								
 		call_transcoder:
                 {
-		        //call_transcoder(pipe_fd,417*count); //in the other end just read from pipefd[0]
+		        //call_transcoder(pipefd,417*count); // In the other end just read from pipefd[0]
 			count=0;
-			goto extra_bytes;  //check if there was some more bytes available
+			goto extra_bytes;  // Check if there were some more bytes available
                 }
 
 

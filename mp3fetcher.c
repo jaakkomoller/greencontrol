@@ -109,12 +109,14 @@ regfree(&preg);
 //Generate a menu
 
 char menu;
-char selection;
+char selection=0;
 int selected=0;
 
 
-
 do {
+
+if (selection!=0)
+goto loop;
 
 	printf("\n##############################################################################");
   	printf("\n                              RadioStreamer");
@@ -132,30 +134,31 @@ scanf("%c", &menu);
 getchar();
 selection=toupper(menu);
 
+loop:
 switch(selection) {
 
 	case '1':
 	printf("\nChannel [1] was chosen\n");
 	selected=1;
-	fetch_playlist(station1);
+	selection=fetch_playlist(station1);
 	break;
 
       	case '2':
         printf("\nChannel [2] was chosen\n");
 	selected=2;
-	fetch_playlist(station2);
+	selection=fetch_playlist(station2);
         break;
 
 	case '3':
 	printf("\nChannel [3] was chosen\n");
 	selected=3;
-	fetch_playlist(station3);
+	selection=fetch_playlist(station3);
         break;
 
   	case '4':
 	printf("\nChannel [4] was chosen\n");
 	selected=4;
-	fetch_playlist(station4);
+	selection=fetch_playlist(station4);
         break;
 
 	case 'N':
@@ -167,37 +170,36 @@ switch(selection) {
  	if (selected==1)
 	{
 	printf("\nChannel [1] was chosen\n");
-	fetch_playlist(station1);
+	selection=fetch_playlist(station1);
 	}
         if (selected==2)
         {
 	printf("\nChannel [2] was chosen\n");
-        fetch_playlist(station2);
+        selection=fetch_playlist(station2);
 	}
 	if (selected==3)
         {
 	printf("\nChannel [3] was chosen\n");
-        fetch_playlist(station3);
+        selection=fetch_playlist(station3);
 	}
 	if (selected==4)
         {
 	printf("\nChannel [4] was chosen\n");
-        fetch_playlist(station4);
+        selection=fetch_playlist(station4);
 	}
 
         break;
 
-  	case 'P':
-	printf("\nPause\n");
+	case 'E':
+		exit(0);
 
-        break;
-
-  	case 'C':
-	printf("\nContinue\n");
-        break;
+	default:
+		selection=0;
+		break;
 
 }
 } while(selection != 'E');
+
 
 
 
@@ -210,7 +212,7 @@ exit(0);
 /*
 * Fetches and parses a playlist html page and tries to call fetch_file() function (possibly several times)
 */
-void fetch_playlist(char* station)
+int fetch_playlist(char* station)
 {
 char page[10000]="";
 char *parsed="";
@@ -259,16 +261,16 @@ page[pmatch[1].rm_so-1]="0"; //reset one bit of the string so regexec does not m
 //fetch_file
 int fetch=fetch_file(ip,port);
 
-if (fetch==1)
+if (fetch==-1)
 {
 continue;
 }
 
-if (fetch==2)
+if (fetch>=0)
 {
 //freeing of memory
 regfree(&preg);
-break;
+return fetch;
 }
 
 }
@@ -366,8 +368,8 @@ while ( (n = recv(sockfd, buffer, MAXBUFFER-1,0)) > 0)  /* read until n is set t
 buffer[n] = 0; /* null terminate */
 if (snprintf(RECEIVED_PAGE+strlen(RECEIVED_PAGE),n,buffer)==EOF) /* write current buffer to string */
 {
-perror("sprintf error");
-return 1;
+//perror("sprintf error");
+//return 1;
 }
 if (n < 0)
 {
@@ -393,7 +395,7 @@ int sockfd, n,m,x,numbytes;
 if ( (sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0) /* create a socket, SOCK_STREAM -> TCP */
 {
 perror("socket error");
-return 1;
+return -1;
 }
 
 bzero(&servaddr, sizeof(servaddr));
@@ -403,13 +405,13 @@ servaddr.sin_port = htons(atoi(PORT)); /* http server */
 if (inet_pton(AF_INET, IP, &servaddr.sin_addr) <= 0) /* Convert an address from ASCII string format to binary */
 {
 perror("inet_pton error");
-return 1;
+return -1;
 }
 
 if (connect(sockfd, (SA *) &servaddr, sizeof(servaddr)) < 0) /* connect to server */
 {
 perror("connect error");
-return 1;
+return -1;
 }
 
 //create http get request
@@ -419,7 +421,7 @@ sprintf(get,"GET / HTTP/1.1\r\nHost: %s:%s\r\nUser-Agent: uberclient/10\r\nRange
 if ((m = send(sockfd, get, MAXLINE,0))<0) /* HTTP GET */
 {
 perror("http GET error");
-return 1;
+return -1;
 }
 
 fd_set readsetfds;
@@ -439,11 +441,10 @@ FD_SET(0, &readsetfds);
 
 int pipefd[2];
 
-
 if (pipe(pipefd) == -1)
 {
         perror("Pipe");
-	return 1;
+	return -1;
 }
 
 
@@ -463,26 +464,28 @@ selectid=select(sockfd+1, &readsetfds2, NULL, NULL,NULL);
 	if (selectid <= 0)
 	{
 	perror("Select");
-	return 1;
+	return -1;
 	}
-
+	int ispaused=0;
 
 	if (selectid > 0) /* something to read */
 	{
 		if (FD_ISSET(sockfd, &readsetfds2)) //MP3 stream
   		{
 
-		if ((  read_bytes = recv(sockfd, buffer, 417,0))<0)
+		if ((read_bytes = recv(sockfd, buffer, 417,0))<0)
   		{
   		perror("recv");
-		return 1;
+		return -1;
   		}
 
 		sum=read_bytes+read_bytes_prev; //Calculate the maximum amount of data that can be written to the buffer. It consists of the data that was just read and the older data, which is in the buffer already, that was not needed before to achieve a full frame.
 
+
 		if (sum >= FRAMESIZE) // A full mp3 frame fetched so write it to the buffer
 		{
-//			write(pipefd[1],buffer,FRAMESIZE-read_bytes_prev);
+
+//			write(1,buffer,FRAMESIZE-read_bytes_prev);
 			count++;
 
 			if (count >=5) // Call the transcoder function when there are 5 full frames in the buffer
@@ -504,8 +507,7 @@ selectid=select(sockfd+1, &readsetfds2, NULL, NULL,NULL);
                 		{
                         		new_buffer[j] = buffer[read_bytes-read_bytes_prev+1+j];
                 		}
-
-//				write(pipefd[1],new_buffer,read_bytes_prev);
+//				write(1,new_buffer,read_bytes_prev);
 			}
 
 			continue;
@@ -515,27 +517,51 @@ selectid=select(sockfd+1, &readsetfds2, NULL, NULL,NULL);
 
 		else // (sum <FRAMESIZE)
                 {
-
-//        	        write(pipefd[1],buffer,read_bytes); // Add these bytes to the buffer. It's not a full frame though
+//	       	        write(1,buffer,read_bytes); // Add these bytes to the buffer. It's not a full frame though
                 	read_bytes_prev=sum;
-
 			continue;
     		}
 
 		call_transcoder:
                 {
-//			call_transcoder(pipefd,417*count); // In the other end just read from pipefd[0]
-			count=0;
-			goto extra_bytes;  // Check if there were some more bytes available
-                }
 
+			if (ispaused==1) // pause is pressed so do not call the tanscoder funtion
+			{
+//				TODO:  clear the pipe, pipefd[0] & 417*count
+			}
+			else // pause is not pressed so call the transcoder funtion
+			{
+//				call_transcoder(pipefd,417*count); // In the other end just read from pipefd[0]
+				count=0;
+				goto extra_bytes;  // Check if there were some more bytes available
+                	}
 
 		}
 
+		}
 		if (FD_ISSET(0, &readsetfds2)) //USER INPUT
                 {
-			printf("Key pressed...\n");;
-                	return 2;
+
+			char menu;
+			scanf("%c", &menu);
+			menu=toupper(menu);
+			getchar();
+
+			if (menu=='P')
+			{
+			printf("Paused\n");
+			ispaused=1;
+			continue;
+			}
+
+			if (menu=='C')
+                        {
+                        printf("Continue\n");
+                        ispaused=0;
+                        continue;
+                        }
+
+                	return menu;
                 }
 
 

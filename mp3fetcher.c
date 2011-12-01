@@ -112,7 +112,6 @@ char menu;
 char selection=0;
 int selected=0;
 
-
 do {
 
 if (selection!=0)
@@ -380,6 +379,8 @@ return 1;
 return 0;
 }
 
+
+
 /*
 * Fetches an mp3 file stream
 */
@@ -394,8 +395,8 @@ int sockfd, n,m,x,numbytes;
 
 if ( (sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0) /* create a socket, SOCK_STREAM -> TCP */
 {
-perror("socket error");
-return -1;
+	perror("socket error");
+	return -1;
 }
 
 bzero(&servaddr, sizeof(servaddr));
@@ -404,14 +405,14 @@ servaddr.sin_port = htons(atoi(PORT)); /* http server */
 
 if (inet_pton(AF_INET, IP, &servaddr.sin_addr) <= 0) /* Convert an address from ASCII string format to binary */
 {
-perror("inet_pton error");
-return -1;
+	perror("inet_pton error");
+	return -1;
 }
 
 if (connect(sockfd, (SA *) &servaddr, sizeof(servaddr)) < 0) /* connect to server */
 {
-perror("connect error");
-return -1;
+	perror("connect error");
+	return -1;
 }
 
 //create http get request
@@ -420,8 +421,8 @@ sprintf(get,"GET / HTTP/1.1\r\nHost: %s:%s\r\nUser-Agent: uberclient/10\r\nRange
 
 if ((m = send(sockfd, get, MAXLINE,0))<0) /* HTTP GET */
 {
-perror("http GET error");
-return -1;
+	perror("http GET error");
+	return -1;
 }
 
 fd_set readsetfds;
@@ -531,7 +532,7 @@ selectid=select(sockfd+1, &readsetfds2, NULL, NULL,NULL);
 			}
 			else // pause is not pressed so call the transcoder function
 			{
-//				call_transcoder(pipefd,417*count);
+//				call_transcoder(); // buffer, 417*count
 				count=0;
 				goto extra_bytes;  // Check if there were some more bytes available
                 	}

@@ -13,7 +13,7 @@
 #include "mp3fetcher.h"
 
 #define SA struct sockaddr
-#define REQUEST "GET /radio/soundtracks HTTP/1.0\r\nHOST:www.shoutcast.com\r\n\r\n"
+#define REQUEST "GET /radio/Original%20Score HTTP/1.0\r\nHOST:www.shoutcast.com\r\n\r\n"
 #define MAXLINE 128
 #define MAXBUFFER 1024
 #define FRAMESIZE 417
@@ -95,7 +95,7 @@ if (j==4)
 	sprintf(station4,"%.*s", pmatch[1].rm_eo - pmatch[1].rm_so, &page[pmatch[1].rm_so]);
 }
 
-//printf("%.*s\n",  pmatch[1].rm_eo - pmatch[1].rm_so, &page[pmatch[1].rm_so]);
+printf("%.*s\n",  pmatch[1].rm_eo - pmatch[1].rm_so, &page[pmatch[1].rm_so]);
 
 
 page[pmatch[1].rm_so-1]="0"; //reset one bit of the string so regexec does not match the same line again.

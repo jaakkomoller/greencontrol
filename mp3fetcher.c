@@ -10,6 +10,7 @@
 #include <netdb.h> /* for hints*/
 #include <regex.h>
 #include <stdlib.h>
+#include <stdlib.h>
 #include "mp3fetcher.h"
 
 #define SA struct sockaddr
@@ -54,14 +55,34 @@ for (i=0;i<10;i++)
 //parse radio stations from html page
 
 regex_t    preg;
-//char *string = &html;
 char       *pattern = "on playimage\" name=\"\\(.*\\)\"></a>";
 int        rc;
 size_t     nmatch = 2;
 regmatch_t pmatch[2];
 
-
    if (0 != (rc = regcomp(&preg, pattern, REG_NEWLINE))) {
+      exit(EXIT_FAILURE);
+   }
+
+// for bitrate checking
+regex_t    preg2;
+char       *pattern2 = "<div class=\"dirbitrate\">([^<]+)</div>";
+int        rc2;
+size_t     nmatch2 = 2;
+regmatch_t pmatch2[2];
+
+   if (0 != (rc2 = regcomp(&preg2, pattern2, REG_EXTENDED))) {
+      exit(EXIT_FAILURE);
+   }
+
+// for audio type checking
+regex_t    preg3;
+char       *pattern3 = "<div class=\"dirtype\">([^<]+)</div>";
+int        rc3;
+size_t     nmatch3 = 2;
+regmatch_t pmatch3[2];
+
+   if (0 != (rc3 = regcomp(&preg3, pattern3, REG_EXTENDED))) {
       exit(EXIT_FAILURE);
    }
 
@@ -70,41 +91,76 @@ char station2[100]="";
 char station3[100]="";
 char station4[100]="";
 
-int j;
-for(j=1;j<5;j++)
+char bitrate[50]="";
+char * parsed;
+char type[50]="";
+char * type_parsed;
+
+int j,station_count=0, match=1;
+
+for(j=0;j<10;j++)
 {
-   if (0 != (rc = regexec(&preg, page, nmatch, pmatch, 0))) {
+   if (0 != (rc = regexec(&preg, page, nmatch, pmatch, 0))) { //Get a station
       printf("Failed to match\n");
    }
    else{
 
-if (j==1)
+// Check that the bitrate of the stream of selected radio station is 128 kbps
+  if (0 != (rc2 = regexec(&preg2, page, nmatch2, pmatch2, 0))) {
+      printf("Failed to match bitrate\n");
+   }
+
+sprintf(bitrate,"%.*s", pmatch2[1].rm_eo - pmatch2[1].rm_so, &page[pmatch2[1].rm_so]);
+parsed = strtok (bitrate," \n");// the actual bitrate of the stream
+page[pmatch2[1].rm_so-1]='0'; //reset one bit of the string so regexec does not match the same line again.
+
+// Check that the audio type of the stream of selected radio station is mp3
+  if (0 != (rc3 = regexec(&preg3, page, nmatch3, pmatch3, 0))) {
+      printf("Failed to match audio type\n");
+   }
+
+sprintf(type,"%.*s", pmatch3[1].rm_eo - pmatch3[1].rm_so, &page[pmatch3[1].rm_so]);
+type_parsed = strtok (type," \n");// mp3 or aac+
+page[pmatch3[1].rm_so-1]='0'; //reset one bit of the string so regexec does not match the same line again.
+
+if (strncmp(parsed,"128",3)==0 && strncmp(type_parsed,"MP3",3)==0)
+{
+	station_count++; //128 kbps mp3 stream
+	match=0;
+}
+
+if (station_count==1 && match==0)
 {
 	sprintf(station1,"%.*s", pmatch[1].rm_eo - pmatch[1].rm_so, &page[pmatch[1].rm_so]);
 }
-if (j==2)
+if (station_count==2 && match==0)
 {
 	sprintf(station2,"%.*s", pmatch[1].rm_eo - pmatch[1].rm_so, &page[pmatch[1].rm_so]);
 }
-if (j==3)
+if (station_count==3 && match==0)
 {
 	sprintf(station3,"%.*s", pmatch[1].rm_eo - pmatch[1].rm_so, &page[pmatch[1].rm_so]);
 }
-if (j==4)
+if (station_count==4 && match==0)
 {
 	sprintf(station4,"%.*s", pmatch[1].rm_eo - pmatch[1].rm_so, &page[pmatch[1].rm_so]);
+	break;
 }
 
-printf("%.*s\n",  pmatch[1].rm_eo - pmatch[1].rm_so, &page[pmatch[1].rm_so]);
+if (strncmp(type_parsed,"MP3",3)==0)
+{
+        page[pmatch[1].rm_so-1]='0'; //reset one bit of the string so regexec does not match the same line again
+}
 
-
-page[pmatch[1].rm_so-1]="0"; //reset one bit of the string so regexec does not match the same line again.
+match=1;
 
   }
 }
 
 //freeing of memory
 regfree(&preg);
+regfree(&preg2);
+regfree(&preg3);
 
 //Generate a menu
 
@@ -245,7 +301,7 @@ char ipandport[100]="";
 //First parse ip and port from playlist, then try to connect (and repeat with different ip+port if necessary)
 while(regexec(&preg, page, nmatch, pmatch, 0)==0 )
 {
-ipandport[100]="";
+ipandport[100]=0;
 sprintf(ipandport,"%.*s", pmatch[1].rm_eo - pmatch[1].rm_so, &page[pmatch[1].rm_so]);
 
 char * ip="";
@@ -254,7 +310,7 @@ char * port="";
 ip=strtok(ipandport,":");
 port=strtok(NULL,":");
 
-page[pmatch[1].rm_so-1]="0"; //reset one bit of the string so regexec does not match the same line again.
+page[pmatch[1].rm_so-1]='0'; //reset one bit of the string so regexec does not match the same line again.
 
 
 //fetch_file
@@ -280,14 +336,14 @@ regfree(&preg);
 
 }
 
-
+char id[15]="";
 
 /*
 * Parses a string by delimeter
 */
 char* parseString(char* MESSAGE)
 {
-char id[15]="";
+//char id[15]="";
 regex_t    preg;
 char       *pattern ="\" id=\"\\(.*\\)";
 int        rc;

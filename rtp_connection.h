@@ -1,7 +1,7 @@
 #ifndef RTP_CONNECTION_H
 #define RTP_CONNECTION_H
 
-
+#include "util.h"
 #include <netinet/in.h>
 
 struct destination {
@@ -34,7 +34,7 @@ int init_rtp_connection(struct rtp_connection *connection,
 		unsigned long send_interval_usec,
 		unsigned int sampling_freq, unsigned int sample_size,
 		int data_input);
-int set_destinations(char **addr, char **ports,
+int set_destinations(char addr[][MAX_IPV4_ADDR_LEN], char ports[][MAX_IPV4_ADDR_LEN],
 		struct rtp_connection *connection, int howmany);
 
 /*

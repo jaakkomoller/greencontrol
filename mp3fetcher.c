@@ -406,11 +406,9 @@ for(i = retaddr; i != NULL; i = i->ai_next)
 
 break;
 }
-//printf("socket:%d\n",sockfd);
 
 //freeing of memory
 freeaddrinfo(retaddr); // Release the storage allocated by getaddrinfo() call
-
 
 if ((m = send(sockfd,HTTP_GET,strlen(HTTP_GET),0))<0) /* HTTP GET */
 {
@@ -421,7 +419,7 @@ return 1;
 while ( (n = recv(sockfd, buffer, MAXBUFFER-1,0)) > 0)  /* read until n is set to 0 */
 {
 buffer[n] = 0; /* null terminate */
-if (snprintf(RECEIVED_PAGE+strlen(RECEIVED_PAGE),n,buffer)==EOF) /* write current buffer to string */
+if (sprintf(RECEIVED_PAGE+strlen(RECEIVED_PAGE),"%s",buffer)==EOF) /* write current buffer to RECEIVED_PAGE */
 {
 //perror("sprintf error");
 //return 1;
@@ -620,18 +618,10 @@ selectid=select(sockfd+1, &readsetfds2, NULL, NULL,NULL);
 
                 	return menu;
                 }
-
-
-
 	}
-
-
 }
 
-
-
 if ((x=close(sockfd))<0)
-perror("error when closing the socket");
-
+	perror("error when closing the socket");
 
 }

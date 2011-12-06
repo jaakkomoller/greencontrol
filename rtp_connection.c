@@ -84,7 +84,7 @@ int rtp_connection_kick(struct rtp_connection *connection) {
 	
 	/* Watch stdin (fd 0) to see when it has input. */
 	FD_ZERO(&rfds);
-	FD_SET(0, &rfds);
+	//FD_SET(0, &rfds);
 
 	/* Wait up to five seconds. */
 	tv.tv_sec = connection->send_interval.tv_sec;
@@ -196,7 +196,7 @@ exit:
 	return err;
 }
 
-int set_destinations(char **addr, char **ports,
+int set_destinations(char addr[][MAX_IPV4_ADDR_LEN], char ports[][MAX_IPV4_ADDR_LEN],
 		struct rtp_connection *connection, int howmany) {
 	
 	int err = 0, i = 0;

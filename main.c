@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include "rtp_connection.h"
 #include "mp3fetcher.h"
-#include "util.h"
+#include "Transcoder.h"
 
 int main(int argc, char *argv[]) {
 
@@ -30,10 +30,12 @@ int main(int argc, char *argv[]) {
 	 */
 	if(opt.rtptest) {
 		FILE *soundfile;
-		char fname[] = "test_data/original.au";
+//		char fname[] = "test_data/original.au";
+		char fname[] = "test_data/test.mp3";
 
 		int sock = 0;
 		struct sockaddr_in dest;
+
 
 		/* TODO Handle errors.. */
 
@@ -43,15 +45,20 @@ int main(int argc, char *argv[]) {
 			err = -1;
 			goto exit_system_err;
 		}
+		
+		init_transcoder(fileno(soundfile));
+		
 		/*
 	int addresses;
 	char destsarray[MAX_IPV4_ADDRS][MAX_IPV4_ADDRS];
 	char portsarray[MAX_IPV4_ADDRS][MAX_IPV4_ADDRS];
 */
+		
+		audio_transcode(rtp_server_pipe[0]);
 		set_destinations(opt.destsarray, opt.portsarray, &rtp_connection, opt.addresses);
 		init_rtp_connection(&rtp_connection, RTP_SEND_INTERVAL_SEC,
 			RTP_SEND_INTERVAL_USEC, RTP_SAMPLING_FREQ,
-			SAMPLE_SIZE, fileno(soundfile));
+			SAMPLE_SIZE, rtp_server_pipe[1]);
 
 		// TODO fork within this function..
 		rtp_connection_kick(&rtp_connection);

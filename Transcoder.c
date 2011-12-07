@@ -29,8 +29,10 @@
 #include "libavutil/common.h"
 #include "libavutil/mathematics.h"
 
+
 #define AUDIO_REFILL_THRESH 4096
 
+/*
 int main(int argc, char *argv[]) 
 {
 	
@@ -44,9 +46,9 @@ int main(int argc, char *argv[])
 	infilename = argv[1];
 	pcmfilename = argv[2];
 	
-	/* must be called before using avcodec lib */
+	// must be called before using avcodec lib 
 	avcodec_init();
-	/* register all the codecs */
+	// register all the codecs 
 	av_register_all();
 	
 	int fd;
@@ -70,6 +72,11 @@ int main(int argc, char *argv[])
 	
 	return(0);
 	
+}*/
+
+int init_transcoder() {
+	avcodec_init();
+	av_register_all();
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -104,7 +111,7 @@ int stream_differentiator(AVFormatContext* inputFormatCtx)
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-static void audio_transcode(const char *inputfile, const char *outputfile)
+void audio_transcode(int infile, int outfile)
 {
 	
 	AVFormatContext *inputFormatCtx;
@@ -113,13 +120,15 @@ static void audio_transcode(const char *inputfile, const char *outputfile)
 	AVCodecContext *AudioCodecCtx= NULL;
 	AVPacket Audiopkt;
 	int out_size, length, AudioPosition;
-	FILE *infile, *outfile;
+//	FILE *infile, *outfile;
 	FILE * tempfile = tmpfile();
 	uint8_t *outbuf;
 	uint8_t *inbuf;
 	long int sample_rate;
-	
-	
+	char infilename[100];
+
+	strcp(infilename, "pipe:");
+	strcp(&infilename[5], itoa(infile));
 	
 	AVCodec *AudioCodecEN = NULL;
     AVCodecContext *AudioCodecCtxEN= NULL;
@@ -129,7 +138,7 @@ static void audio_transcode(const char *inputfile, const char *outputfile)
 	
 
 	// Open audio file
-	if(av_open_input_file(&inputFormatCtx, inputfile, NULL, 0, NULL)!=0){
+	if(av_open_input_file(&inputFormatCtx, infilename, NULL, 0, NULL)!=0){
 		printf("couldn't open audio file\n");
 		exit(1); // Couldn't open file
 	}
@@ -147,7 +156,7 @@ static void audio_transcode(const char *inputfile, const char *outputfile)
 		AudioPosition = 0;
 	
 	
-	unlink(outputfile);
+	//unlink(outputfile);
 
 	/* find the mpeg3 audio decoder */
 	AudioCodecCtx = inputFormatCtx->streams[AudioPosition]->codec;
@@ -199,7 +208,7 @@ static void audio_transcode(const char *inputfile, const char *outputfile)
 	
 	/* file */
 	
-	infile = fopen(inputfile, "rb");
+/*	infile = fopen(inputfile, "rb");
 	if (!infile) {
 		fprintf(stderr, "could not open %s\n", inputfile);
 		exit(1);
@@ -210,7 +219,7 @@ static void audio_transcode(const char *inputfile, const char *outputfile)
 		av_free(AudioCodecCtx);
 		exit(1);
 	}
-	
+*/	
 	/* decode until eof */
 	Audiopkt.data = inbuf;
 
@@ -239,8 +248,7 @@ static void audio_transcode(const char *inputfile, const char *outputfile)
 					 * AUDIO_REFILL_THRESH = 4096*/
 					memmove(inbuf, Audiopkt.data, Audiopkt.size);
 					Audiopkt.data = inbuf;
-					length = fread(Audiopkt.data + Audiopkt.size, 1,
-								   AUDIO_INBUF_SIZE - Audiopkt.size, infile);
+					length = read(infile, Audiopkt.data + Audiopkt.size, AUDIO_INBUF_SIZE - Audiopkt.size);
 					if (length > 0)
 						Audiopkt.size += length;
 				}
@@ -256,13 +264,13 @@ static void audio_transcode(const char *inputfile, const char *outputfile)
 	rewind (tempfile);
 	while(fread(buffer_file, 1, bytes_to_read, tempfile)>0){
 		out_sizeEN = avcodec_encode_audio(AudioCodecCtxEN, outbufEN, outbuf_size, (short int*)buffer_file);
-		fwrite(outbufEN, 1, 1, outfile);
+		write(outfile, outbufEN, 1);
 		i++;
 
 	}
 	
-	fclose(outfile);
-	fclose(infile);
+//	fclose(outfile);
+//	fclose(infile);
 	free(outbuf);
 	free(outbufEN);
 	free(inbuf);

@@ -20,5 +20,6 @@
 #include "libavutil/common.h"
 #include "libavutil/mathematics.h"
 
+int init_transcoder();
 int stream_differentiator(AVFormatContext* inputFormatCtx);
-static void audio_transcode(const char *inputfile, const char *outputfile);
+void audio_transcode(int infile, int outfileno);

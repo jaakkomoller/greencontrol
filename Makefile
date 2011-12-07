@@ -1,7 +1,7 @@
 CC=gcc
 CFLAGS=-g
-LDFLAGS=
-SOURCES=main.c rtp_connection.c rtp_packet.c util.c mp3fetcher.c converter.c
+LDFLAGS=-lavutil -lavformat -lavcodec -lz -lm `sdl-config --cflags --libs`
+SOURCES=main.c rtp_connection.c rtp_packet.c util.c mp3fetcher.c converter.c Transcoder.c
 OBJECTS=$(SOURCES:.c=.o)
 EXECUTABLE=RadioStreamer
 

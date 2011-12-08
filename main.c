@@ -16,8 +16,7 @@ int main(int argc, char *argv[]) {
 		goto exit_err;
 	}
 
-	int fd[2];
-	err = pipe(fd);
+	err = pipe(rtp_server_pipe);
 	if(err != 0) {
 		goto exit_system_err;
 	} 
@@ -46,7 +45,7 @@ int main(int argc, char *argv[]) {
 			goto exit_system_err;
 		}
 		
-		init_transcoder(fileno(soundfile));
+//		init_transcoder();
 		
 		/*
 	int addresses;
@@ -54,18 +53,26 @@ int main(int argc, char *argv[]) {
 	char portsarray[MAX_IPV4_ADDRS][MAX_IPV4_ADDRS];
 */
 		
-		audio_transcode(rtp_server_pipe[0]);
-		set_destinations(opt.destsarray, opt.portsarray, &rtp_connection, opt.addresses);
-		init_rtp_connection(&rtp_connection, RTP_SEND_INTERVAL_SEC,
-			RTP_SEND_INTERVAL_USEC, RTP_SAMPLING_FREQ,
-			SAMPLE_SIZE, rtp_server_pipe[1]);
+		if(fork() == 0) {
+			struct transcoder_data coder;
+			init_transcoder();
+			init_transcoder_data(fileno(soundfile), rtp_server_pipe[1], &coder);
+			audio_transcode(&coder);
+			free_transcode_data(&coder);
+		} else {
+//		audio_transcode2(0, rtp_server_pipe[1], "test_data/test.mp3");
+			set_destinations(opt.destsarray, opt.portsarray, &rtp_connection, opt.addresses);
+			init_rtp_connection(&rtp_connection, RTP_SEND_INTERVAL_SEC,
+				RTP_SEND_INTERVAL_USEC, RTP_SAMPLING_FREQ,
+				SAMPLE_SIZE, rtp_server_pipe[0]);
 
 		// TODO fork within this function..
-		rtp_connection_kick(&rtp_connection);
+			rtp_connection_kick(&rtp_connection);
 		
-		free_rtp_connection(&rtp_connection);
+			free_rtp_connection(&rtp_connection);
 
-		fclose(soundfile);
+			fclose(soundfile);
+		}
 	}
 
 	if(argc == 2 && strcmp(argv[1], "fetcher") == 0) {

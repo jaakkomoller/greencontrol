@@ -1,6 +1,6 @@
 CC=gcc
 CFLAGS=-g
-LDFLAGS=-lavutil -lavformat -lavcodec -lz -lm `sdl-config --cflags --libs`
+LDFLAGS=-lavutil -lavformat -lavcodec -lgcc
 SOURCES=main.c rtp_connection.c rtp_packet.c util.c mp3fetcher.c converter.c Transcoder.c
 OBJECTS=$(SOURCES:.c=.o)
 EXECUTABLE=RadioStreamer
@@ -8,7 +8,7 @@ EXECUTABLE=RadioStreamer
 all: $(SOURCES) $(EXECUTABLE)
 	
 $(EXECUTABLE): $(OBJECTS) 
-	$(CC) $(LDFLAGS) $(OBJECTS) -o $@
+	$(CC) $(OBJECTS) -o $@ $(LDFLAGS)
 
 .o:
 	$(CC) $(CFLAGS) $< -o $@

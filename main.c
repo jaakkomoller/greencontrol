@@ -56,8 +56,10 @@ int main(int argc, char *argv[]) {
 		if(fork() == 0) {
 			struct transcoder_data coder;
 			init_transcoder();
-			init_transcoder_data(fileno(soundfile), rtp_server_pipe[1], &coder);
-			audio_transcode(&coder);
+//			init_transcoder_data(fileno(soundfile), rtp_server_pipe[1], &coder);
+			init_transcoder_data(rtp_server_pipe[0], rtp_server_pipe[1], &coder);
+			fetch_station_info(&coder);
+			//audio_transcode(&coder);
 			free_transcode_data(&coder);
 		} else {
 //		audio_transcode2(0, rtp_server_pipe[1], "test_data/test.mp3");
@@ -76,7 +78,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	if(argc == 2 && strcmp(argv[1], "fetcher") == 0) {
-	fetch_station_info();
+	//fetch_station_info();
 
 	}
 

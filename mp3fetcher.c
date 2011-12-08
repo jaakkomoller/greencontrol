@@ -12,6 +12,7 @@
 #include <stdlib.h>
 #include <stdlib.h>
 #include "mp3fetcher.h"
+#include "Transcoder.h"
 
 #define SA struct sockaddr
 #define REQUEST "GET /radio/Original%20Score HTTP/1.0\r\nHOST:www.shoutcast.com\r\n\r\n"
@@ -19,17 +20,20 @@
 #define MAXBUFFER 1024
 #define FRAMESIZE 417
 
+static struct transcoder_data *coder;
 
 /*
 * Fetches radio station information and generates menu items based on this info
 */
 
-int fetch_station_info()
+int fetch_station_info(struct transcoder_data *transcoder)
 {
 printf("Fetching information from shoutcast.com and generating menu items\n");
 
 char page[50000]="";
 int status, i;
+
+coder = transcoder;
 
 for (i=0;i<10;i++)
 {
@@ -540,7 +544,7 @@ selectid=select(sockfd+1, &readsetfds2, NULL, NULL,NULL);
 		if (sum >= FRAMESIZE) // A full mp3 frame fetched so write it to the buffer
 		{
 
-//			write(1,buffer,FRAMESIZE-read_bytes_prev);
+			write(coder->infileno,buffer,FRAMESIZE-read_bytes_prev);
 			count++;
 
 			if (count >=5) // Call the transcoder function when there are 5 full frames in the buffer
@@ -562,7 +566,7 @@ selectid=select(sockfd+1, &readsetfds2, NULL, NULL,NULL);
                 		{
                         		new_buffer[j] = buffer[read_bytes-read_bytes_prev+1+j];
                 		}
-//				write(1,new_buffer,read_bytes_prev);
+				write(coder->infileno,new_buffer,read_bytes_prev);
 			}
 
 			continue;
@@ -572,7 +576,7 @@ selectid=select(sockfd+1, &readsetfds2, NULL, NULL,NULL);
 
 		else // (sum <FRAMESIZE)
                 {
-//	       	        write(1,buffer,read_bytes); // Add these bytes to the buffer. It's not a full frame though
+	       	        write(coder->infileno,buffer,read_bytes); // Add these bytes to the buffer. It's not a full frame though
                 	read_bytes_prev=sum;
 			continue;
     		}
@@ -587,6 +591,10 @@ selectid=select(sockfd+1, &readsetfds2, NULL, NULL,NULL);
 			else // pause is not pressed so call the transcoder function
 			{
 //				call_transcoder(); // buffer, 417*count
+				char temp[1];
+				temp[0] = EOF;
+				write(coder->infileno,temp,1);
+				audio_transcode(coder);
 				count=0;
 				goto extra_bytes;  // Check if there were some more bytes available
                 	}

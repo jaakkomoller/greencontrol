@@ -123,8 +123,8 @@ int rtp_connection_kick(struct rtp_connection *connection) {
 				}
 			}
 			
-			printf(".");
-			fflush(stdout);
+//			printf(".");
+//			fflush(stdout);
 
 			connection->seq_no++;
 			connection->timestamp +=

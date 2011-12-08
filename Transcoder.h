@@ -6,6 +6,8 @@
  *  Copyright 2011 __MyCompanyName__. All rights reserved.
  *
  */
+#ifndef TRANSCODER_H
+#define TRANSCODER_H
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -29,7 +31,7 @@ struct transcoder_data {
 	AVCodec *AudioCodecEN;
 	AVCodecContext *AudioCodecCtxEN;
 
-	int infileno, outfileno;
+	int infileno, outfileno, initialized;
 };
 
 int init_transcoder();
@@ -37,3 +39,5 @@ int init_transcoder_data(int infileno, int outfileno, struct transcoder_data *da
 int stream_differentiator(AVFormatContext* inputFormatCtx);
 void audio_transcode(struct transcoder_data *data);
 void free_transcode_data(struct transcoder_data *data);
+
+#endif

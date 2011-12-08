@@ -218,8 +218,6 @@ int init_transcoder() {
 
 int init_transcoder_data(int infileno, int outfileno, struct transcoder_data *data) {
 	
-	char infilename[100];
-	int AudioPosition = 0;
 
 	data->inputFormatCtx = NULL;
 	//Declaration for Audio stream//
@@ -234,19 +232,30 @@ int init_transcoder_data(int infileno, int outfileno, struct transcoder_data *da
 	data->infileno = infileno;
 	data->outfileno = outfileno;
 
-	sprintf(infilename, "pipe:%d", infileno);
+	data->initialized = 0;
+}
+
+static void init_context(struct transcoder_data *data) {
+	char infilename[100];
+	int AudioPosition = 0;
+
+printf("in here\n");
+
+	sprintf(infilename, "pipe:%d", data->infileno);
 
 	// Open audio file
 	if(av_open_input_file(&data->inputFormatCtx, infilename, NULL, 0, NULL)!=0){
 		printf("couldn't open audio file\n");
 		exit(1); // Couldn't open file
 	}
+printf("1\n");
 
 	if(data->inputFormatCtx->nb_streams > 1)
 		AudioPosition = stream_differentiator(data->inputFormatCtx);
 	else 
 		AudioPosition = 0;
 	
+printf("2\n");
 	
 	// Retrieve stream information
 	if(av_find_stream_info(data->inputFormatCtx) < 0){
@@ -254,6 +263,7 @@ int init_transcoder_data(int infileno, int outfileno, struct transcoder_data *da
 		exit(1); // Couldn't find stream information
 	}
 
+printf("3\n");
 	/* find the mpeg3 audio decoder */
 	data->AudioCodecCtx = data->inputFormatCtx->streams[AudioPosition]->codec;
 	data->AudioCodec = avcodec_find_decoder(data->AudioCodecCtx->codec_id);
@@ -262,6 +272,7 @@ int init_transcoder_data(int infileno, int outfileno, struct transcoder_data *da
 		exit(1);
 	}
 	
+printf("4\n");
 	data->AudioCodecCtx= avcodec_alloc_context();
 	
 	/* Initializes the AVCodecContext to use the given AVCodec */
@@ -269,6 +280,7 @@ int init_transcoder_data(int infileno, int outfileno, struct transcoder_data *da
 		fprintf(stderr, "could not open codec for decoder\n");
 		exit(1);
 	}
+printf("5\n");
 	
 	data->AudioCodecEN = avcodec_find_encoder(CODEC_ID_PCM_MULAW);
 	if (!data->AudioCodecEN) {
@@ -276,6 +288,7 @@ int init_transcoder_data(int infileno, int outfileno, struct transcoder_data *da
 		exit(1);
 	}
     
+printf("6\n");
 	data->AudioCodecCtxEN = avcodec_alloc_context();
 	data->AudioCodecCtxEN->sample_rate = 8000;
 	data->AudioCodecCtxEN->channels = 1;
@@ -288,6 +301,7 @@ int init_transcoder_data(int infileno, int outfileno, struct transcoder_data *da
 		exit(1);
 	}
 	
+printf("leaving\n");
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -307,7 +321,13 @@ void audio_transcode(struct transcoder_data *data)
 	float ratio, j;
 	
 	AVPacket Audiopkt;
-	
+
+	if (data->initialized == 0) {
+		init_context(data);
+		data->initialized = 1;
+	}
+
+
 	if(data->inputFormatCtx->nb_streams > 1)
 		AudioPosition = stream_differentiator(data->inputFormatCtx);
 	else 

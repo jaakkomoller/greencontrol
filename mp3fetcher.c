@@ -20,7 +20,7 @@
 #define FRAMESIZE 417
 
 static int outfile;
-static int gstate;
+static int *gstate;
 
 /*
  * Fetches radio station information and generates menu items based on this info
@@ -30,11 +30,11 @@ int fetch_station_info(int outfileno, int *state)
 {
 	printf("Fetching information from shoutcast.com and generating menu items\n");
 
-	char page[50000]="";
+	char page[50000] = "";
 	int status, i;
 
 	outfile = outfileno;
-	gstate = *state;
+	gstate = state;
 
 	for (i = 0; i < 10; i++)
 	{

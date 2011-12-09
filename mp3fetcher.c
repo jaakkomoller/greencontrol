@@ -26,7 +26,7 @@ static int *gstate;
  * Fetches radio station information and generates menu items based on this info
  */
 
-int fetch_station_info(int outfileno, int *state, char stations[][100], int max_stations)
+int fetch_station_info(char stations[][100], int max_stations)
 {
 	printf("Fetching information from shoutcast.com and generating menu items\n");
 
@@ -35,9 +35,6 @@ int fetch_station_info(int outfileno, int *state, char stations[][100], int max_
 
 	for(i = 0; i < max_stations; i++)
 		sprintf(stations[i], "");
-
-	outfile = outfileno;
-	gstate = state;
 
 	for (i = 0; i < 10; i++)
 	{
@@ -152,16 +149,23 @@ int fetch_station_info(int outfileno, int *state, char stations[][100], int max_
 	regfree(&preg);
 	regfree(&preg2);
 	regfree(&preg3);
+
+	return station_count;
 }
 
 
-int start_gui(char stations[][100]) {
+int start_gui(int outfileno, int *state, char stations[][100], int station_count) {
+
+	outfile = outfileno;
+	gstate = state;
 
 	//Generate a menu
 
-	char menu;
-	char selection=0;
-	int selected=0;
+	char menu[100];
+	char selection = 0;
+	int int_selection = 0;
+	int selected = 0;
+	int i = 0;
 
 	do {
 
@@ -171,71 +175,41 @@ int start_gui(char stations[][100]) {
 		printf("\n##############################################################################");
 		printf("\n                              RadioStreamer");
 		printf("\n##############################################################################");
-		printf("\n[1] \"%s\"",stations[0]);
-		printf("\n[2] \"%s\"",stations[1]);
-		printf("\n[3] \"%s\"",stations[2]);
-		printf("\n[4] \"%s\"",stations[3]);
+		for(i = 0; i < station_count; i++)
+		printf("\n[%d] \"%s\"", i+1, stations[i]);
 		printf("\n##############################################################################");
 		printf("\n[N]ext, [P]ause, [C]ontinue, [E]xit");
 		printf("\n##############################################################################");
 		printf("\nChoose a channel: ");
 
-		scanf("%c", &menu);
+		scanf("%s", menu);
 		getchar();
-		selection=toupper(menu);
-
+		selection = toupper(menu[0]);
+		int_selection = atoi(menu);
+		
 loop:
+		if (isdigit(menu[0]) && int_selection > 0 && int_selection <= station_count) {
+			printf("\nChannel [%d] was chosen\n", int_selection);
+			selected = int_selection;
+			selection = fetch_playlist(stations[int_selection - 1]);
+			break;
+		}
+
+		else if (int_selection > station_count)
+			printf("\nPlease select a channel between 1 and %d\n", station_count);
+		
 		switch(selection) {
 
-			case '1':
-				printf("\nChannel [1] was chosen\n");
-				selected=1;
-				selection=fetch_playlist(stations[0]);
-				break;
-
-			case '2':
-				printf("\nChannel [2] was chosen\n");
-				selected=2;
-				selection=fetch_playlist(stations[1]);
-				break;
-
-			case '3':
-				printf("\nChannel [3] was chosen\n");
-				selected=3;
-				selection=fetch_playlist(stations[2]);
-				break;
-
-			case '4':
-				printf("\nChannel [4] was chosen\n");
-				selected=4;
-				selection=fetch_playlist(stations[3]);
-				break;
-
 			case 'N':
-				selected=selected+1;
+				selected = selected + 1;
 
-				if (selected==5)
-					selected=1;
+				if (selected == station_count +1)
+					selected = 1;
 
-				if (selected==1)
+				if (selected == 1)
 				{
-					printf("\nChannel [1] was chosen\n");
-					selection=fetch_playlist(stations[0]);
-				}
-				if (selected==2)
-				{
-					printf("\nChannel [2] was chosen\n");
-					selection=fetch_playlist(stations[1]);
-				}
-				if (selected==3)
-				{
-					printf("\nChannel [3] was chosen\n");
-					selection=fetch_playlist(stations[2]);
-				}
-				if (selected==4)
-				{
-					printf("\nChannel [4] was chosen\n");
-					selection=fetch_playlist(stations[3]);
+					printf("\nChannel [%d] was chosen\n", selected);
+					selection=fetch_playlist(stations[selected - 1]);
 				}
 
 				break;
@@ -244,7 +218,7 @@ loop:
 				exit(0);
 
 			default:
-				selection=0;
+				selection = 0 ;
 				break;
 
 		}

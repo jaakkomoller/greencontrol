@@ -188,6 +188,7 @@ int start_gui(int outfileno, int *state, char stations[][100], int station_count
 		int_selection = atoi(menu);
 		
 loop:
+		// Channel number selected
 		if (isdigit(menu[0]) && int_selection > 0 && int_selection <= station_count) {
 			printf("\nChannel [%d] was chosen\n", int_selection);
 			selected = int_selection;
@@ -209,7 +210,7 @@ loop:
 				if (selected == 1)
 				{
 					printf("\nChannel [%d] was chosen\n", selected);
-					selection=fetch_playlist(stations[selected - 1]);
+					selection = fetch_playlist(stations[selected - 1]);
 				}
 
 				break;

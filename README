@@ -1,0 +1,6 @@
+
+
+Run with ./RadioStreamer -c [IP-addrs],[port],[another addr],[another port],...
+
+
+Instructions for compiling are in INSTALL file.

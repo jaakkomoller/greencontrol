@@ -34,8 +34,8 @@ int main(int argc, char *argv[]) {
 		if(fork() == 0) {
 			// MP3 fetcher's thread (Also UI)
 			char stations[MAX_STATIONS][100];
-			fetch_station_info(transcoder_pipe[1], &state, stations, MAX_STATIONS);
-			start_gui(stations);
+			int station_count = fetch_station_info(stations, MAX_STATIONS);
+			start_gui(transcoder_pipe[1], &state, stations, station_count);
 		} else {
 			// Transcoder's thread
 			int fd;

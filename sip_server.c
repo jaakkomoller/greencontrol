@@ -2,10 +2,11 @@
  /*gcc -std=c99 -g -W -Wall -o ./Sip_server sip_server.c*/
 
 
-int main(int argc, char *argv[])
+int sip_server_kick(char channel_list[][100])
 {
 	int sockfd; /*File descriptor for socket*/
 	int portno; /*port number*/
+	int i;
 	socklen_t clilen; /*stores the size of the address of the client. This is needed for the accept system call.*/
 	char buffer[BUFLEN]; /*Buffer for reading each datagram*/
 	struct sockaddr_in serv_addr, cli_addr;
@@ -30,7 +31,7 @@ int main(int argc, char *argv[])
 	char* result = NULL;
 	int Unsupportflag = FALSE;
 
-	for (int i=0; i<NPACK; i++) {
+	for (i = 0; i < NPACK; i++) {
 		memset(buffer,'\0',BUFLEN);
 		if (recvfrom(sockfd, buffer, sizeof(buffer), 0, (struct sockaddr *) &cli_addr, &clilen)==-1)
 			error("recvfrom()");

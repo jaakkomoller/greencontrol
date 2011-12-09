@@ -26,12 +26,15 @@ static int *gstate;
  * Fetches radio station information and generates menu items based on this info
  */
 
-int fetch_station_info(int outfileno, int *state)
+int fetch_station_info(int outfileno, int *state, char stations[][100], int max_stations)
 {
 	printf("Fetching information from shoutcast.com and generating menu items\n");
 
 	char page[50000] = "";
 	int status, i;
+
+	for(i = 0; i < max_stations; i++)
+		sprintf(stations[i], "");
 
 	outfile = outfileno;
 	gstate = state;
@@ -91,11 +94,6 @@ int fetch_station_info(int outfileno, int *state)
 		exit(EXIT_FAILURE);
 	}
 
-	char station1[100]="";
-	char station2[100]="";
-	char station3[100]="";
-	char station4[100]="";
-
 	char bitrate[50]="";
 	char * parsed;
 	char type[50]="";
@@ -134,23 +132,11 @@ int fetch_station_info(int outfileno, int *state)
 				match=0;
 			}
 
-			if (station_count==1 && match==0)
-			{
-				sprintf(station1,"%.*s", pmatch[1].rm_eo - pmatch[1].rm_so, &page[pmatch[1].rm_so]);
-			}
-			if (station_count==2 && match==0)
-			{
-				sprintf(station2,"%.*s", pmatch[1].rm_eo - pmatch[1].rm_so, &page[pmatch[1].rm_so]);
-			}
-			if (station_count==3 && match==0)
-			{
-				sprintf(station3,"%.*s", pmatch[1].rm_eo - pmatch[1].rm_so, &page[pmatch[1].rm_so]);
-			}
-			if (station_count==4 && match==0)
-			{
-				sprintf(station4,"%.*s", pmatch[1].rm_eo - pmatch[1].rm_so, &page[pmatch[1].rm_so]);
+			if (station_count > 0 && station_count <= max_stations && match == 0)
+				sprintf(stations[station_count - 1],"%.*s", pmatch[1].rm_eo - pmatch[1].rm_so, &page[pmatch[1].rm_so]);
+			
+			if (station_count == max_stations)
 				break;
-			}
 
 			if (strncmp(type_parsed,"MP3",3)==0)
 			{
@@ -166,6 +152,10 @@ int fetch_station_info(int outfileno, int *state)
 	regfree(&preg);
 	regfree(&preg2);
 	regfree(&preg3);
+}
+
+
+int start_gui(char stations[][100]) {
 
 	//Generate a menu
 
@@ -181,10 +171,10 @@ int fetch_station_info(int outfileno, int *state)
 		printf("\n##############################################################################");
 		printf("\n                              RadioStreamer");
 		printf("\n##############################################################################");
-		printf("\n[1] \"%s\"",station1);
-		printf("\n[2] \"%s\"",station2);
-		printf("\n[3] \"%s\"",station3);
-		printf("\n[4] \"%s\"",station4);
+		printf("\n[1] \"%s\"",stations[0]);
+		printf("\n[2] \"%s\"",stations[1]);
+		printf("\n[3] \"%s\"",stations[2]);
+		printf("\n[4] \"%s\"",stations[3]);
 		printf("\n##############################################################################");
 		printf("\n[N]ext, [P]ause, [C]ontinue, [E]xit");
 		printf("\n##############################################################################");
@@ -200,25 +190,25 @@ loop:
 			case '1':
 				printf("\nChannel [1] was chosen\n");
 				selected=1;
-				selection=fetch_playlist(station1);
+				selection=fetch_playlist(stations[0]);
 				break;
 
 			case '2':
 				printf("\nChannel [2] was chosen\n");
 				selected=2;
-				selection=fetch_playlist(station2);
+				selection=fetch_playlist(stations[1]);
 				break;
 
 			case '3':
 				printf("\nChannel [3] was chosen\n");
 				selected=3;
-				selection=fetch_playlist(station3);
+				selection=fetch_playlist(stations[2]);
 				break;
 
 			case '4':
 				printf("\nChannel [4] was chosen\n");
 				selected=4;
-				selection=fetch_playlist(station4);
+				selection=fetch_playlist(stations[3]);
 				break;
 
 			case 'N':
@@ -230,22 +220,22 @@ loop:
 				if (selected==1)
 				{
 					printf("\nChannel [1] was chosen\n");
-					selection=fetch_playlist(station1);
+					selection=fetch_playlist(stations[0]);
 				}
 				if (selected==2)
 				{
 					printf("\nChannel [2] was chosen\n");
-					selection=fetch_playlist(station2);
+					selection=fetch_playlist(stations[1]);
 				}
 				if (selected==3)
 				{
 					printf("\nChannel [3] was chosen\n");
-					selection=fetch_playlist(station3);
+					selection=fetch_playlist(stations[2]);
 				}
 				if (selected==4)
 				{
 					printf("\nChannel [4] was chosen\n");
-					selection=fetch_playlist(station4);
+					selection=fetch_playlist(stations[3]);
 				}
 
 				break;
@@ -497,17 +487,6 @@ int fetch_file(char* IP,char* PORT)
 
 	FD_SET(sockfd, &readsetfds); /* Turn on bit for fd in the set */
 	FD_SET(0, &readsetfds);
-
-
-	int pipefd[2];
-
-	if (pipe(pipefd) == -1)
-	{
-		perror("Pipe");
-		return -1;
-	}
-
-
 
 	int read_bytes=0;
 	int read_bytes_prev=0;

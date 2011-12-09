@@ -21,6 +21,7 @@
 #define RTP_DATA_READ_ERROR 7
 #define COMMAND_LINE_PARSING_ERROR 8
 
+enum state {RUNNING, PAUSE, STOP};
 
 struct cl_options {
 	int addresses;

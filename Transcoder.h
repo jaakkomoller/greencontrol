@@ -24,20 +24,18 @@
 
 struct transcoder_data {
 	AVFormatContext *inputFormatCtx;
-	//Declaration for Audio stream//
 	AVCodec *AudioCodec;
 	AVCodecContext *AudioCodecCtx;
 
 	AVCodec *AudioCodecEN;
 	AVCodecContext *AudioCodecCtxEN;
 
-	int infileno, outfileno, initialized;
+	int transcoder_in, transcoder_out, initialized;
 };
 
 int init_transcoder();
-int init_transcoder_data(int infileno, int outfileno, struct transcoder_data *data);
-int stream_differentiator(AVFormatContext* inputFormatCtx);
-void audio_transcode(struct transcoder_data *data);
+int init_transcoder_data(int transcoder_inno, int transcoder_outno, struct transcoder_data *data);
+void audio_transcode(struct transcoder_data *data, int *state);
 void free_transcode_data(struct transcoder_data *data);
 
 #endif

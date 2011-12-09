@@ -32,15 +32,9 @@ int parse_opts(int argc, char **argv, struct cl_options *opt) {
 	opt->rtptest = 0;
 	opt->addresses = 0;
 
-	while ((c = getopt (argc, argv, "u:p:c:r")) != -1 && error == 0) {
-printf("parsing %i\n", c);
-printf("print %i\n", 'r');
+	while ((c = getopt (argc, argv, "u:p:c:")) != -1 && error == 0) {
 		switch (c)
 		{
-		case 'r':
-;printf("Setting rtptest\n");
-			;opt->rtptest = 1;
-			break;
 		case 'u':
 			printf("Option not implemented\n");
 			break;
@@ -48,7 +42,8 @@ printf("print %i\n", 'r');
 			printf("Option not implemented\n");
 			break;
 		case 'c':
-;printf("Setting IP-address\n");
+			// Set the client IP-addresses
+			// Format [address],[port],[another address],[another port]...
 			;char *ipaddr, *port, *temp;
 			int i = 0;
 			

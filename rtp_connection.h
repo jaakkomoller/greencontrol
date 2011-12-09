@@ -37,21 +37,7 @@ int init_rtp_connection(struct rtp_connection *connection,
 int set_destinations(char addr[][MAX_IPV4_ADDR_LEN], char ports[][MAX_IPV4_ADDR_LEN],
 		struct rtp_connection *connection, int howmany);
 
-/*
- * Reads the U-law encoded data and sends to clients. The soundfile is
- * expected to include HTTP headers, so we need a function that parses
- * those out. Only IPv4 support initially. Control data will be taken
- * in UDP.
- *
- * @arg soundfile: File pointer to read incoming mp3 from HTTP connected sk
- * @arg input: stdin
- * @arg control_port: Port to bind to get control packets (extra)
- * @arg dest_addr: list of destination addresses
- * @arg count: amount of destination addresses
- * @arg af_family: To which address family are we sending to
- *
- */
-int rtp_connection_kick(struct rtp_connection *connection);
+int rtp_connection_kick(struct rtp_connection *connection, int *state);
 
 int free_rtp_connection(struct rtp_connection *connection);
 #endif /* RTP_CONNECTION_H */

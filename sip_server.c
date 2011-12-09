@@ -2,7 +2,8 @@
  /*gcc -std=c99 -g -W -Wall -o ./Sip_server sip_server.c*/
 
 
-int sip_server_kick(char channel_list[][100])
+//int sip_server_kick(char channel_list[][100])
+int main(int argc, char *argv[])
 {
 	int sockfd; /*File descriptor for socket*/
 	int portno; /*port number*/
@@ -35,6 +36,9 @@ int sip_server_kick(char channel_list[][100])
 		memset(buffer,'\0',BUFLEN);
 		if (recvfrom(sockfd, buffer, sizeof(buffer), 0, (struct sockaddr *) &cli_addr, &clilen)==-1)
 			error("recvfrom()");
+		
+		printf("client: %s\n", inet_ntoa(cli_addr.sin_addr));
+
 		Sip_in *Sip_cli = in_init();
 		Sip_body *body = body_init();
 		result = strtok(buffer,"\n");
@@ -52,86 +56,86 @@ int sip_server_kick(char channel_list[][100])
 		while(result != NULL){
 			if(ind == 0){
 				if((Sip_cli->Req = realloc(Sip_cli->Req,strlen(result) + 1)) == NULL) {
-    					error("realloc");
+					error("realloc");
 				}	
 				strcpy(Sip_cli->Req,result);
 			}
 			else{
 				if(strncmp(result,"Via:",strlen("Via:")) == 0){
 					if((Sip_cli->Via = realloc(Sip_cli->Via,strlen(result) + 1)) == NULL) {
-	    					error("realloc");
+						error("realloc");
 					}	
 					strcpy(Sip_cli->Via,result);
 				}
 				else if(strncmp(result,"From:",strlen("From:")) == 0){
 					if((Sip_cli->From = realloc(Sip_cli->From,strlen(result) + 1)) == NULL) {
-	    					error("realloc");
+						error("realloc");
 					}	
 					strcpy(Sip_cli->From,result);
 				}
 				else if(strncmp(result,"To:",strlen("To:")) == 0){
 					if((Sip_cli->To = realloc(Sip_cli->To,strlen(result) + 1)) == NULL) {
-	    					error("realloc");
+						error("realloc");
 					}	
 					strcpy(Sip_cli->To,result);
 				}
 				else if(strncmp(result,"Call-ID:",strlen("Call-ID:")) == 0){
 					if((Sip_cli->Call_ID = realloc(Sip_cli->Call_ID, strlen(result) + 1)) == NULL) {
-	    					error("realloc");
+						error("realloc");
 					}	
 					strcpy(Sip_cli->Call_ID,result);
 				}
 				else if(strncmp(result,"CSeq:",strlen("CSeq:")) == 0){
 					if((Sip_cli->CSeq = realloc(Sip_cli->CSeq, strlen(result) + 1)) == NULL) {
-	    					error("realloc");
+						error("realloc");
 					}	
 					strcpy(Sip_cli->CSeq,result);
 				}
 				else if(strncmp(result,"Accept:",strlen("Accept:")) == 0){
 					if((Sip_cli->Accept = realloc(Sip_cli->Accept, strlen(result) + 1)) == NULL) {
-	    					error("realloc");
+						error("realloc");
 					}	
 					strcpy(Sip_cli->Accept,result);
 				}
 				else if(strncmp(result,"Content-Type:",strlen("Content-Type:")) == 0){
 					if((Sip_cli->Cnt_type = realloc(Sip_cli->Cnt_type, strlen(result) + 1)) == NULL) {
-	    					error("realloc");
+						error("realloc");
 					}	
 					strcpy(Sip_cli->Cnt_type,result);
 				}
 				else if(strncmp(result,"Allow:",strlen("Allow:")) == 0){
 					if((Sip_cli->Allow = realloc(Sip_cli->Allow, strlen(result) + 1)) == NULL) {
-	    					error("realloc");
+						error("realloc");
 					}	
 					strcpy(Sip_cli->Allow,result);
 				}
 				else if(strncmp(result,"Max-Forwards:",strlen("Max-Forwards:")) == 0){
 					if((Sip_cli->Max_FWD = realloc(Sip_cli->Max_FWD, strlen(result) + 1)) == NULL) {
-	    					error("realloc");
+						error("realloc");
 					}	
 					strcpy(Sip_cli->Max_FWD,result);
 				}
 				else if(strncmp(result,"User-Agent:",strlen("User-Agent:")) == 0){
 					if((Sip_cli->UA = realloc(Sip_cli->UA, strlen(result) + 1)) == NULL) {
-	    					error("realloc");
+						error("realloc");
 					}	
 					strcpy(Sip_cli->UA,result);
 				}
 				else if(strncmp(result,"Subject:",strlen("Subject:")) == 0){
 					if((Sip_cli->Subject = realloc(Sip_cli->Subject, strlen(result) + 1)) == NULL) {
-	    					error("realloc");
+						error("realloc");
 					}	
 					strcpy(Sip_cli->Subject,result);
 				}
 				else if(strncmp(result,"Expires:",strlen("Expires:")) == 0){
 					if((Sip_cli->Expires = realloc(Sip_cli->Expires, strlen(result) + 1)) == NULL) {
-	    					error("realloc");
+						error("realloc");
 					}	
 					strcpy(Sip_cli->Expires,result);
 				}
 				else if(strncmp(result,"Content-Length:",strlen("Content-Length:")) == 0){
 					if((Sip_cli->Cnt_len = realloc(Sip_cli->Cnt_len, strlen(result) + 1)) == NULL) {
-	    					error("realloc");
+						error("realloc");
 					}	
 					strcpy(Sip_cli->Cnt_len,result);
 					if(strncmp(Sip_cli->Cnt_len,"Content-Length: 0",strlen("Content-Length: 0"))!= 0){
@@ -142,38 +146,39 @@ int sip_server_kick(char channel_list[][100])
 				if(bodyflag == SUPPORT){
 					if(strncmp(result,"v=",2) == 0){
 						if((body->v = realloc(body->v, strlen(result) + 1)) == NULL) {
-		    					error("realloc");
+							error("realloc");
 						}	
 						strcpy(body->v,result);
 					}
 					else if(strncmp(result,"o=",2) == 0){
 						if((body->o = realloc(body->o, strlen(result) + 1)) == NULL) {
-		    					error("realloc");
+							error("realloc");
 						}	
 						strcpy(body->o,result);
 					}
 					else if(strncmp(result,"a=rtpmap:0 PCMU/8000",strlen("a=rtpmap:0 PCMU/8000")) == 0){
 						if((body->a1 = realloc(body->a1, strlen(result) + 1)) == NULL) {
-		    					error("realloc");
+							error("realloc");
 						}	
 						strcpy(body->a1,result);
 						RTPflag = SUPPORT;
 					}
 					else if(strncmp(result,"a=rtpmap:101 telephone-event/8000",strlen("a=rtpmap:101 telephone-event/8000")) == 0){
 						if((body->a2 = realloc(body->a2, strlen(result) + 1)) == NULL) {
-		    					error("realloc");
+							error("realloc");
 						}	
 						strcpy(body->a2,result);
 					}
-					else if(strncmp(result,"a=fmtp",strlen("a=fmtp")) == 0){
+					else if(strncmp(result,"a=fmtp:101 0-11",strlen("a=fmtp:101 0-11")) == 0){
 						if((body->a3 = realloc(body->a3, strlen(result) + 1)) == NULL) {
-		    					error("realloc");
+							error("realloc");
 						}	
 						strcpy(body->a3,result);
+						RTPflag = SUPPORT;
 					}
 					else if(strncmp(result,"Signal=",strlen("Signal=")) == 0){
 						/*SOME OPRATION TO GET SIGNAL VALUE NEEDS TO BE DONE HERE*/
-						
+
 						result = strstr(result,"=");
 						result = strtok(result,"=");
 						DTMF_signal = result[0];
@@ -182,7 +187,7 @@ int sip_server_kick(char channel_list[][100])
 							DTMFflag = UNSUPPORT;
 						}			
 						printf("%c\n",DTMF_signal);
-											
+
 					}
 				}
 
@@ -193,20 +198,26 @@ int sip_server_kick(char channel_list[][100])
 		/*Handle different message types, then send response out*/
 		if(strncmp(Sip_cli->Req,"OPTIONS",7) == 0){
 			strcpy(server_msg,OPTIONS_Handle(Sip_cli, cli_addr,server_msg2));
-			if (sendto(sockfd, server_msg,strlen(server_msg), 0, (struct sockaddr *) &cli_addr, clilen)==-1)
+			if (sendto(sockfd, server_msg,strlen(server_msg), 0, (struct sockaddr *) &cli_addr, clilen)==-1) {
+				printf("1 %s, sockfd%i, cliaddr %s, clilen %d\n", server_msg, sockfd, inet_ntoa(cli_addr.sin_addr), clilen);
 				error("sendto");
+			}
 		}
 		else if(strncmp(Sip_cli->Req,"INVITE",6) == 0){
 			/*If the codec is supported*/
 			if(RTPflag == SUPPORT){
+				printf("Supports!\n");
 				strcpy(server_msg,INVITE_Handle(Sip_cli, body, cli_addr, server_msg2));
 			}/*If PCMU is not supported by the client*/
 			else if(RTPflag != SUPPORT){
+				printf("No support\n");
 				strcpy(server_msg,UNSUPPORT_Handle(Sip_cli, cli_addr, server_msg2));
 				Unsupportflag = TRUE;
 			}
-			if (sendto(sockfd, server_msg,strlen(server_msg), 0, (struct sockaddr *) &cli_addr, clilen)==-1)
+			if (sendto(sockfd, server_msg,strlen(server_msg), 0, (struct sockaddr *) &cli_addr, clilen)==-1) {
+				printf("2\n");
 				error("sendto");	
+			}
 		}
 		else if(strncmp(Sip_cli->Req,"ACK",3) == 0 && Unsupportflag == FALSE){
 			printf("ACK REC\n");
@@ -219,27 +230,33 @@ int sip_server_kick(char channel_list[][100])
 		}
 		else if(strncmp(Sip_cli->Req,"INFO",4) == 0){
 			strcpy(server_msg,INFO_Handle(Sip_cli, cli_addr, server_msg2));
-			if (sendto(sockfd, server_msg,strlen(server_msg), 0, (struct sockaddr *) &cli_addr, clilen)==-1)
+			if (sendto(sockfd, server_msg,strlen(server_msg), 0, (struct sockaddr *) &cli_addr, clilen)==-1) {
+				printf("3\n");
 				error("sendto");
+			}
 			if(DTMFflag == UNSUPPORT){
 				strcpy(server_msg,UNSUPPORT_Handle(Sip_cli, cli_addr, server_msg2));
-				if (sendto(sockfd, server_msg,strlen(server_msg), 0, (struct sockaddr *) &cli_addr, clilen)==-1)
+				if (sendto(sockfd, server_msg,strlen(server_msg), 0, (struct sockaddr *) &cli_addr, clilen)==-1) {
+					printf("4\n");
 					error("sendto");
+				}
 			}
 		}
 		else if(strncmp(Sip_cli->Req,"BYE",3) == 0){
 			strcpy(server_msg,BYE_Handle(Sip_cli, cli_addr, server_msg2));
-			if (sendto(sockfd, server_msg,strlen(server_msg), 0, (struct sockaddr *) &cli_addr, clilen)==-1)
+			if (sendto(sockfd, server_msg,strlen(server_msg), 0, (struct sockaddr *) &cli_addr, clilen)==-1) {
+				printf("5\n");
 				error("sendto");
+			}
 		}
-		
+
 		free_in(Sip_cli);
 		free_body(body);
 		free(server_msg);
 		free(server_msg2);
 	}
-     close(sockfd);
-     return 0; 
+	close(sockfd);
+	return 0; 
 }
 
 char* OPTIONS_Handle(Sip_in *client, struct sockaddr_in client_addr, char* msg){
@@ -253,7 +270,7 @@ char* OPTIONS_Handle(Sip_in *client, struct sockaddr_in client_addr, char* msg){
 		error("realloc");
 	}
 	strcpy(Sip_ser->Status,"SIP/2.0 200 OK");
-	
+
 	char delims[] = "rport";
 	result = strtok(client->Via,delims);
 	int i = 0;
@@ -274,7 +291,7 @@ char* OPTIONS_Handle(Sip_in *client, struct sockaddr_in client_addr, char* msg){
 		}
 		else if(i == 2){
 			strcat(buffer,result);
-			
+
 		}
 		result = strtok(NULL,delims);
 		i++;
@@ -298,17 +315,17 @@ char* OPTIONS_Handle(Sip_in *client, struct sockaddr_in client_addr, char* msg){
 	//printf("RAND = %d",random());
 	strcpy(Sip_ser->To,client->To);
 	strcat(Sip_ser->To,tag);
-	
+
 	if((Sip_ser->Call_ID = realloc(Sip_ser->Call_ID, strlen(client->Call_ID) + 1)) == NULL) {
 		error("realloc");
 	}	
 	strcpy(Sip_ser->Call_ID,client->Call_ID);
-	
+
 	if((Sip_ser->CSeq = realloc(Sip_ser->CSeq, strlen(client->CSeq) + 1)) == NULL) {
 		error("realloc");
 	}
 	strcpy(Sip_ser->CSeq,client->CSeq);
-		
+
 	if((Sip_ser->Allow = realloc(Sip_ser->Allow, strlen("Allow: INVITE,ACK,BYE,OPTIONS,INFO") + 1)) == NULL) {
 		error("realloc");
 	}	
@@ -373,19 +390,18 @@ char* OPTIONS_Handle(Sip_in *client, struct sockaddr_in client_addr, char* msg){
 
 
 char* INVITE_Handle(Sip_in *client, Sip_body *body,struct sockaddr_in client_addr,char* msg){
-	//printf("IN INVITE Handles\n");
+	printf("IN INVITE Handles\n");
 
 	char* result = NULL;
 	char buffer[256];
 	memset(buffer,'\0',256);
 	Sip_out *Sip_ser = out_init();
 	Sip_body *serv_body = body_init();
-
 	if((Sip_ser->Status = realloc(Sip_ser->Status, strlen("SIP/2.0 200 OK") + 1)) == NULL) {
 		error("realloc");
 	}
 	strcpy(Sip_ser->Status,"SIP/2.0 200 OK");
-	
+
 	char delims[] = "rport";
 	result = strtok(client->Via,delims);
 	int i = 0;
@@ -406,7 +422,7 @@ char* INVITE_Handle(Sip_in *client, Sip_body *body,struct sockaddr_in client_add
 		}
 		else if(i == 2){
 			strcat(buffer,result);
-			
+
 		}
 		result = strtok(NULL,delims);
 		i++;
@@ -422,18 +438,18 @@ char* INVITE_Handle(Sip_in *client, Sip_body *body,struct sockaddr_in client_add
 	char tag[16];
 	memset(tag,'\0',16);
 	sprintf(tag,";tag=%d",rand());
-	
+
 	if((Sip_ser->To = realloc(Sip_ser->To, strlen(client->To)+ 15 + 1)) == NULL) {
 		error("realloc");
 	}	
 	strcpy(Sip_ser->To,client->To);
 	strcat(Sip_ser->To,tag);
-	
+
 	if((Sip_ser->Call_ID = realloc(Sip_ser->Call_ID, strlen(client->Call_ID) + 1)) == NULL) {
 		error("realloc");
 	}	
 	strcpy(Sip_ser->Call_ID,client->Call_ID);
-	
+
 	if((Sip_ser->CSeq = realloc(Sip_ser->CSeq, strlen(client->CSeq) + 1)) == NULL) {
 		error("realloc");
 	}
@@ -468,12 +484,12 @@ char* INVITE_Handle(Sip_in *client, Sip_body *body,struct sockaddr_in client_add
 		error("realloc");
 	}	
 	strcpy(serv_body->o,buffer);
-	
+
 	if((serv_body->v = realloc(serv_body->v, strlen("v=0") + 1)) == NULL) {
 		error("realloc");
 	}	
 	strcpy(serv_body->v,"v=0");
-	
+
 
 	if((serv_body->s = realloc(serv_body->s, strlen("s=A conversation") + 1)) == NULL) {
 		error("realloc");
@@ -498,23 +514,30 @@ char* INVITE_Handle(Sip_in *client, Sip_body *body,struct sockaddr_in client_add
 	}	
 	strcpy(serv_body->m,"m=audio 8078 RTP/AVP 0 101");
 
-	if((serv_body->a1 = realloc(serv_body->a1, strlen(body->a1) + 1)) == NULL) {
-		error("realloc");
-	}	
-	strcpy(serv_body->a1,body->a1);
-	
-	if((serv_body->a2 = realloc(serv_body->a2, strlen(body->a2) + 1)) == NULL) {
-		error("realloc");
-	}	
-	strcpy(serv_body->a2,body->a2);
+	if(body->a1) {
+		if((serv_body->a1 = realloc(serv_body->a1, strlen(body->a1) + 1)) == NULL) {
+			error("realloc");
+		}	
+		strcpy(serv_body->a1,body->a1);
+	}
 
-	if((serv_body->a3 = realloc(serv_body->a3, strlen("a=fmtp:101 0-9") + 1)) == NULL) {
-		error("realloc");
-	}	
-	strcpy(serv_body->a3,"a=fmtp:101 0-9");
+	if(body->a2) {
+		if((serv_body->a2 = realloc(serv_body->a2, strlen(body->a2) + 1)) == NULL) {
+			error("realloc");
+		}	
+		strcpy(serv_body->a2,body->a2);
+	}
+
+	if(body->a3) {
+		if((serv_body->a3 = realloc(serv_body->a3, strlen(body->a3) + 1)) == NULL) {
+			error("realloc");
+		}	
+		strcpy(serv_body->a3,body->a3);
+	}
 
 	int length = strlen(serv_body->v) + strlen(serv_body->o) + strlen(serv_body->s) + strlen(serv_body->c) + strlen(serv_body->t) +
-			 strlen(serv_body->m) + strlen(serv_body->a1) + strlen(serv_body->a2) + strlen(serv_body->a3)+9*2;
+			 strlen(serv_body->m) + ((serv_body->a1) ? strlen(serv_body->a1) : 0) +
+			 ((serv_body->a2) ? strlen(serv_body->a2) : 0) + ((serv_body->a3) ? strlen(serv_body->a3) : 0) +9*2;
 	memset(buffer,'\0',256);
 	sprintf(buffer,"Content-Length: %d",length);
 	if((Sip_ser->Cnt_len = realloc(Sip_ser->Cnt_len, strlen(buffer) + 1)) == NULL) {
@@ -1044,14 +1067,27 @@ void free_out(Sip_out* stream){
 /*free struct Sip_body*/
 void free_body(Sip_body* stream){
 
-	free(stream->v);
-	free(stream->o);
-	free(stream->s);
-	free(stream->c);
-	free(stream->t);
-	free(stream->m);
-	free(stream->a1);
-	free(stream->a2);
-	free(stream->a3);
+	if(!stream)
+		return;
+
+	if(stream->v != NULL)
+		free(stream->v);
+	if(stream->o != NULL)
+		free(stream->o);
+	if(stream->s != NULL)
+		free(stream->s);
+	if(stream->c != NULL)
+		free(stream->c);
+	if(stream->t != NULL)
+		free(stream->t);
+	if(stream->m != NULL)
+		free(stream->m);
+	if(stream->a1 != NULL)
+		free(stream->a1);
+	if(stream->a2 != NULL)
+		free(stream->a2);
+	if(stream->a3 != NULL)
+		free(stream->a3);
+
 	free(stream);
 }

@@ -19,9 +19,6 @@
 #define MAXBUFFER 1024
 #define FRAMESIZE 417
 
-static int outfile;
-static int *gstate;
-
 /*
  * Fetches radio station information and generates menu items based on this info
  */
@@ -98,13 +95,13 @@ int fetch_station_info(char stations[][100], int max_stations)
 
 	int j,station_count=0, match=1;
 
-	for(j=0;j<10;j++)
+	for(j=0;1;j++)
 	{
 		if (0 != (rc = regexec(&preg, page, nmatch, pmatch, 0))) { //Get a station
-			printf("Failed to match\n");
+//			printf("Failed to match\n");
+			break;
 		}
 		else{
-
 			// Check that the bitrate of the stream of selected radio station is 128 kbps
 			if (0 != (rc2 = regexec(&preg2, page, nmatch2, pmatch2, 0))) {
 				printf("Failed to match bitrate\n");
@@ -124,16 +121,20 @@ int fetch_station_info(char stations[][100], int max_stations)
 			page[pmatch3[1].rm_so-1]='0'; //reset one bit of the string so regexec does not match the same line again.
 
 			if (strncmp(parsed,"128",3)==0 && strncmp(type_parsed,"MP3",3)==0)
+//			if (strncmp(type_parsed,"MP3",3)==0)
 			{
 				station_count++; //128 kbps mp3 stream
 				match=0;
 			}
 
-			if (station_count > 0 && station_count <= max_stations && match == 0)
+			if (station_count > 0 && station_count <= max_stations && match == 0) {
 				sprintf(stations[station_count - 1],"%.*s", pmatch[1].rm_eo - pmatch[1].rm_so, &page[pmatch[1].rm_so]);
-			
-			if (station_count == max_stations)
+//				printf("added %s, bitrate: %s\n", stations[station_count-1], parsed);
+			}
+			if (station_count == max_stations) {
+				printf("breaking, %d, %d\n", station_count, max_stations);
 				break;
+			}
 
 			if (strncmp(type_parsed,"MP3",3)==0)
 			{
@@ -154,10 +155,7 @@ int fetch_station_info(char stations[][100], int max_stations)
 }
 
 
-int start_gui(int outfileno, int *state, char stations[][100], int station_count) {
-
-	outfile = outfileno;
-	gstate = state;
+int start_gui(int outfile, int *state, char stations[][100], int station_count) {
 
 	//Generate a menu
 
@@ -184,16 +182,17 @@ int start_gui(int outfileno, int *state, char stations[][100], int station_count
 
 		scanf("%s", menu);
 		getchar();
+
+loop:
 		selection = toupper(menu[0]);
 		int_selection = atoi(menu);
-		
-loop:
+
 		// Channel number selected
 		if (isdigit(menu[0]) && int_selection > 0 && int_selection <= station_count) {
 			printf("\nChannel [%d] was chosen\n", int_selection);
 			selected = int_selection;
-			selection = fetch_playlist(stations[int_selection - 1]);
-			break;
+			fetch_playlist(outfile, state, stations[int_selection - 1], menu);
+			goto loop;
 		}
 
 		else if (int_selection > station_count)
@@ -206,17 +205,13 @@ loop:
 
 				if (selected == station_count +1)
 					selected = 1;
-
-				if (selected == 1)
-				{
-					printf("\nChannel [%d] was chosen\n", selected);
-					selection = fetch_playlist(stations[selected - 1]);
-				}
+				
+				sprintf(menu, "%d", selected);
 
 				break;
 
 			case 'E':
-				exit(0);
+				break;
 
 			default:
 				selection = 0 ;
@@ -237,7 +232,7 @@ loop:
 /*
  * Fetches and parses a playlist html page and tries to call fetch_file() function (possibly several times)
  */
-int fetch_playlist(char* station)
+int fetch_playlist(int outfile, int *state, char* station, char *buf)
 {
 	char page[10000]="";
 	char *parsed="";
@@ -284,7 +279,7 @@ int fetch_playlist(char* station)
 
 
 		//fetch_file
-		int fetch=fetch_file(ip,port);
+		int fetch = fetch_file(outfile, state, ip, port, buf);
 
 		if (fetch==-1)
 		{
@@ -409,7 +404,7 @@ int fetch_page(char* URL, char* PORT,char* HTTP_GET,char* RECEIVED_PAGE)
  * Fetches an mp3 file stream
  */
 
-int fetch_file(char* IP,char* PORT)
+int fetch_file(int outfile, int *state, char* IP, char* PORT, char *buf)
 {
 	//Try to connect to a certain IP:PORT
 
@@ -457,34 +452,32 @@ int fetch_file(char* IP,char* PORT)
 
 	int selectid;
 
-	FD_ZERO(&readsetfds2); /* clear all bits in the set */
 	FD_ZERO(&readsetfds);
 
-	FD_SET(sockfd, &readsetfds); /* Turn on bit for fd in the set */
-	FD_SET(0, &readsetfds);
-
-	int read_bytes=0;
-	int read_bytes_prev=0;
+	int read_bytes = 0;
+	int read_bytes_prev = 0;
 	int sum;
+	int ispaused = 0;
 
 	int count=0;
 
 	//Wait for some input
 	for(;;)
 	{
-		readsetfds2 = readsetfds;
-		selectid=select(sockfd+1, &readsetfds2, NULL, NULL,NULL);
+		FD_SET(sockfd, &readsetfds); /* Turn on bit for fd in the set */
+		FD_SET(0, &readsetfds);
+
+		selectid = select(sockfd+1, &readsetfds, NULL, NULL,NULL);
 
 		if (selectid <= 0)
 		{
 			perror("Select");
 			return -1;
 		}
-		int ispaused=0;
 
 		if (selectid > 0) /* something to read */
 		{
-			if (FD_ISSET(sockfd, &readsetfds2)) //MP3 stream
+			if (FD_ISSET(sockfd, &readsetfds)) //MP3 stream
 			{
 
 				if ((read_bytes = recv(sockfd, buffer, 417,0))<0)
@@ -499,7 +492,8 @@ int fetch_file(char* IP,char* PORT)
 				if (sum >= FRAMESIZE) // A full mp3 frame fetched so write it to the buffer
 				{
 
-					write(outfile,buffer,FRAMESIZE-read_bytes_prev);
+					if (!ispaused)
+						write(outfile,buffer,FRAMESIZE-read_bytes_prev);
 					count++;
 
 					if (count >=5) // Call the transcoder function when there are 5 full frames in the buffer
@@ -521,19 +515,21 @@ extra_bytes:  // Calculate the extra bytes and write them to the buffer too
 						{
 							new_buffer[j] = buffer[read_bytes-read_bytes_prev+1+j];
 						}
-						write(outfile,new_buffer,read_bytes_prev);
+						if (!ispaused)
+							write(outfile,new_buffer,read_bytes_prev);
 					}
 
-					continue;
+					goto exit_recv;
 
 				}
 
 
 				else // (sum <FRAMESIZE)
 				{
-					write(outfile,buffer,read_bytes); // Add these bytes to the buffer. It's not a full frame though
+					if (!ispaused)
+						write(outfile,buffer,read_bytes); // Add these bytes to the buffer. It's not a full frame though
 					read_bytes_prev=sum;
-					continue;
+					goto exit_recv;
 				}
 
 call_transcoder:
@@ -552,12 +548,12 @@ call_transcoder:
 				}
 
 			}
-			if (FD_ISSET(0, &readsetfds2)) //USER INPUT
+exit_recv:
+			if (FD_ISSET(0, &readsetfds)) //USER INPUT
 			{
-
 				char menu;
-				scanf("%c", &menu);
-				menu=toupper(menu);
+				scanf("%s", buf);
+				menu = toupper(buf[0]);
 				getchar();
 
 				if (menu=='P')

@@ -1,6 +1,6 @@
-[mp3 @ 0x1c791a0] Header missing
-[mp3 @ 0x1c791a0] Header missing
-[mp3 @ 0x1c77260] max_analyze_duration reached
-[mp3 @ 0x1c77260] Estimating duration from bitrate, this may be inaccurate
-[mp3 @ 0x1c77aa0] Header missing
-[mp3 @ 0x1c77aa0] Header missing
+[mp3 @ 0xfbce40] Header missing
+[mp3 @ 0xfbce40] Header missing
+[mp3 @ 0xfbaf00] max_analyze_duration reached
+[mp3 @ 0xfbaf00] Estimating duration from bitrate, this may be inaccurate
+[mp3 @ 0xfbb740] Header missing
+[mp3 @ 0xfbb740] Header missing

@@ -1,6 +1,76 @@
 #include "sip_server.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/file.h>
+#include "rtp_connection.h"
+#include "mp3fetcher.h"
+#include "Transcoder.h"
  /*gcc -std=c99 -g -W -Wall -o ./Sip_server sip_server.c*/
 
+int connection_kick(int *state, char stations[][100], int stations_count, char *destination, int port) {
+	int err = 0;
+	int rtp_server_pipe[2]; // This pipes data from transcoder to rtp server
+	int transcoder_pipe[2]; // This pipes data from mp3fetcher to transcoder
+	struct rtp_connection rtp_connection; // The RTP connection object
+	char tempdest[1][100], tempport[1][100];
+
+	sprintf(tempdest[0], "%s", destination);
+	sprintf(tempport[0], "%d", port);
+
+	err = pipe(rtp_server_pipe);
+	if(err != 0) {
+		goto exit_system_err;
+	} 
+
+	err = pipe(transcoder_pipe);
+	if(err != 0) {
+		goto exit_system_err;
+	} 
+
+	if(fork() == 0) {
+
+		if(fork() == 0) {
+
+			if(fork() == 0) {
+				// RTP server's thread
+				set_destinations(tempdest, tempport, &rtp_connection, 1);
+				init_rtp_connection(&rtp_connection, RTP_SEND_INTERVAL_SEC,
+						RTP_SEND_INTERVAL_USEC, RTP_SAMPLING_FREQ,
+						SAMPLE_SIZE, rtp_server_pipe[0]);
+
+				rtp_connection_kick(&rtp_connection, state);
+
+				free_rtp_connection(&rtp_connection);
+				*state = STOP; // Stop other threads as well
+			} else {
+				// MP3 fetcher's thread (Also UI)
+				fetch_playlist(transcoder_pipe[1], state, stations[0]);
+				*state = STOP; // Stop other threads as well
+			}
+		} else {
+			// Transcoder's thread
+			int fd;
+			fd = open("warning.txt", O_TRUNC | O_RDWR);
+			dup2(fd, 2); 
+			struct transcoder_data coder;
+			init_transcoder();
+			init_transcoder_data(transcoder_pipe[0], rtp_server_pipe[1], &coder);
+			audio_transcode(&coder, state);
+			free_transcode_data(&coder);
+			close(fd);
+			*state = STOP; // Stop other threads as well
+
+		}
+	}
+
+exit_system_err:
+	if(err != 0)
+		perror("Error with syscalls: ");
+exit:
+	return 0;
+
+
+}
 
 //int sip_server_kick(char channel_list[][100])
 int main(int argc, char *argv[])
@@ -11,6 +81,12 @@ int main(int argc, char *argv[])
 	socklen_t clilen; /*stores the size of the address of the client. This is needed for the accept system call.*/
 	char buffer[BUFLEN]; /*Buffer for reading each datagram*/
 	struct sockaddr_in serv_addr, cli_addr;
+
+
+	char stations[MAX_STATIONS][100];
+	int station_count = fetch_station_info(stations, MAX_STATIONS);
+	int state = RUNNING;
+
 	/*struct sockaddr_in
 	{
 	  short   sin_family; // must be AF_INET 
@@ -163,6 +239,12 @@ int main(int argc, char *argv[])
 						strcpy(body->a1,result);
 						RTPflag = SUPPORT;
 					}
+					else if(strncmp(result,"m=",strlen("m=")) == 0){
+						if((body->m = realloc(body->m, strlen(result) + 1)) == NULL) {
+							error("realloc");
+						}	
+						strcpy(body->m,result);
+					}
 					else if(strncmp(result,"a=rtpmap:101 telephone-event/8000",strlen("a=rtpmap:101 telephone-event/8000")) == 0){
 						if((body->a2 = realloc(body->a2, strlen(result) + 1)) == NULL) {
 							error("realloc");
@@ -208,6 +290,10 @@ int main(int argc, char *argv[])
 			if(RTPflag == SUPPORT){
 				printf("Supports!\n");
 				strcpy(server_msg,INVITE_Handle(Sip_cli, body, cli_addr, server_msg2));
+char temp[100];
+sprintf(temp, "%s", &body->m[8]);
+strtok(temp, " ");
+connection_kick(&state, stations, station_count, inet_ntoa(cli_addr.sin_addr), atoi(temp));
 			}/*If PCMU is not supported by the client*/
 			else if(RTPflag != SUPPORT){
 				printf("No support\n");
@@ -536,7 +622,7 @@ char* INVITE_Handle(Sip_in *client, Sip_body *body,struct sockaddr_in client_add
 	}
 
 	int length = strlen(serv_body->v) + strlen(serv_body->o) + strlen(serv_body->s) + strlen(serv_body->c) + strlen(serv_body->t) +
-			 strlen(serv_body->m) + ((serv_body->a1) ? strlen(serv_body->a1) : 0) +
+			 ((serv_body->m) ? strlen(serv_body->m)  : 0)+ ((serv_body->a1) ? strlen(serv_body->a1) : 0) +
 			 ((serv_body->a2) ? strlen(serv_body->a2) : 0) + ((serv_body->a3) ? strlen(serv_body->a3) : 0) +9*2;
 	memset(buffer,'\0',256);
 	sprintf(buffer,"Content-Length: %d",length);

@@ -156,9 +156,6 @@ int fetch_station_info(char stations[][100], int max_stations)
 
 int start_gui(int outfileno, int *state, char stations[][100], int station_count) {
 
-	outfile = outfileno;
-	gstate = state;
-
 	//Generate a menu
 
 	char menu[100];
@@ -192,7 +189,7 @@ loop:
 		if (isdigit(menu[0]) && int_selection > 0 && int_selection <= station_count) {
 			printf("\nChannel [%d] was chosen\n", int_selection);
 			selected = int_selection;
-			selection = fetch_playlist(stations[int_selection - 1]);
+			selection = fetch_playlist(outfileno, state, stations[int_selection - 1]);
 			break;
 		}
 
@@ -210,7 +207,7 @@ loop:
 				if (selected == 1)
 				{
 					printf("\nChannel [%d] was chosen\n", selected);
-					selection = fetch_playlist(stations[selected - 1]);
+					selection = fetch_playlist(outfileno, state, stations[selected - 1]);
 				}
 
 				break;
@@ -237,10 +234,13 @@ loop:
 /*
  * Fetches and parses a playlist html page and tries to call fetch_file() function (possibly several times)
  */
-int fetch_playlist(char* station)
+int fetch_playlist(int outfileno, int *state, char* station)
 {
 	char page[10000]="";
 	char *parsed="";
+	
+	outfile = outfileno;
+	gstate = state;
 
 	parsed = parseString(station);
 

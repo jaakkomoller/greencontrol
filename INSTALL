@@ -1,0 +1,12 @@
+
+
+Prerequisites:
+
+In order to compile in Ubuntu, you need to install the following packages:
+
+libavfilter-dev
+libavformat-dev
+libavutil-dev
+libavutil-extra-51
+libavcodec-dev
+libavcodec-extra-53

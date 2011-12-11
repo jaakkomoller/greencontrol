@@ -251,7 +251,7 @@ int main(int argc, char *argv[])
 						}	
 						strcpy(body->a2,result);
 					}
-					else if(strncmp(result,"a=fmtp:101 0-11",strlen("a=fmtp:101 0-11")) == 0){
+					else if(strncmp(result,"a=fmtp",strlen("a=fmtp")) == 0){
 						if((body->a3 = realloc(body->a3, strlen(result) + 1)) == NULL) {
 							error("realloc");
 						}	
@@ -315,18 +315,14 @@ connection_kick(&state, stations, station_count, inet_ntoa(cli_addr.sin_addr), a
 			Unsupportflag = FALSE;
 		}
 		else if(strncmp(Sip_cli->Req,"INFO",4) == 0){
-			strcpy(server_msg,INFO_Handle(Sip_cli, cli_addr, server_msg2));
-			if (sendto(sockfd, server_msg,strlen(server_msg), 0, (struct sockaddr *) &cli_addr, clilen)==-1) {
-				printf("3\n");
-				error("sendto");
-			}
+			
 			if(DTMFflag == UNSUPPORT){
 				strcpy(server_msg,UNSUPPORT_Handle(Sip_cli, cli_addr, server_msg2));
-				if (sendto(sockfd, server_msg,strlen(server_msg), 0, (struct sockaddr *) &cli_addr, clilen)==-1) {
-					printf("4\n");
-					error("sendto");
-				}
 			}
+			else
+				strcpy(server_msg,INFO_Handle(Sip_cli, cli_addr, server_msg2));
+			if (sendto(sockfd, server_msg,strlen(server_msg), 0, (struct sockaddr *) &cli_addr, clilen)==-1)
+				error("sendto");
 		}
 		else if(strncmp(Sip_cli->Req,"BYE",3) == 0){
 			strcpy(server_msg,BYE_Handle(Sip_cli, cli_addr, server_msg2));
@@ -420,10 +416,10 @@ char* OPTIONS_Handle(Sip_in *client, struct sockaddr_in client_addr, char* msg){
 		error("realloc");
 	}	
 	strcpy(Sip_ser->Accept,client->Accept);
-	if((Sip_ser->UA = realloc(Sip_ser->UA, strlen(client->UA) + 1)) == NULL) {
+	if((Sip_ser->UA = realloc(Sip_ser->UA, strlen(UserAgent) + 1)) == NULL) {
 		error("realloc");
 	}
-	strcpy(Sip_ser->UA,client->UA);
+	strcpy(Sip_ser->UA,UserAgent);
 	if((Sip_ser->Cnt_len = realloc(Sip_ser->Cnt_len, strlen(client->Cnt_len) + 1)) == NULL) {
 		error("realloc");
 	}	
@@ -554,10 +550,10 @@ char* INVITE_Handle(Sip_in *client, Sip_body *body,struct sockaddr_in client_add
 	}
 	strcpy(Sip_ser->Cnt_type,client->Cnt_type);
 
-	if((Sip_ser->UA = realloc(Sip_ser->UA, strlen(client->UA) + 1)) == NULL) {
+	if((Sip_ser->UA = realloc(Sip_ser->UA, strlen(UserAgent) + 1)) == NULL) {
 		error("realloc");
 	}
-	strcpy(Sip_ser->UA,client->UA);
+	strcpy(Sip_ser->UA,UserAgent);
 	result = strtok(client->To,"@");
 	result = strtok(result,":");
 	result = strtok(NULL,":");
@@ -776,10 +772,10 @@ char* UNSUPPORT_Handle(Sip_in *client, struct sockaddr_in client_addr,char* msg)
 	}
 	strcpy(Sip_ser->CSeq,client->CSeq);
 		
-	if((Sip_ser->UA = realloc(Sip_ser->UA, strlen(client->UA) + 1)) == NULL) {
+	if((Sip_ser->UA = realloc(Sip_ser->UA, strlen(UserAgent) + 1)) == NULL) {
 		error("realloc");
 	}
-	strcpy(Sip_ser->UA,client->UA);
+	strcpy(Sip_ser->UA,UserAgent);
 	if((Sip_ser->Cnt_len = realloc(Sip_ser->Cnt_len, strlen("Content-Length: 0") + 1)) == NULL) {
 		error("realloc");
 	}	
@@ -803,6 +799,7 @@ char* UNSUPPORT_Handle(Sip_in *client, struct sockaddr_in client_addr,char* msg)
 	}
 	if(Sip_ser->Call_ID != NULL){
 		strcat(msg,Sip_ser->Call_ID);
+		strcat(msg,"\r\n");
 	}
 	if(Sip_ser->CSeq != NULL){
 		strcat(msg,Sip_ser->CSeq);
@@ -892,10 +889,10 @@ char* INFO_Handle(Sip_in *client, struct sockaddr_in client_addr,char* msg){
 	}
 	strcpy(Sip_ser->Contact,buffer);
 
-	if((Sip_ser->UA = realloc(Sip_ser->UA, strlen(client->UA) + 1)) == NULL) {
+	if((Sip_ser->UA = realloc(Sip_ser->UA, strlen(UserAgent) + 1)) == NULL) {
 		error("realloc");
 	}
-	strcpy(Sip_ser->UA,client->UA);
+	strcpy(Sip_ser->UA,UserAgent);
 	if((Sip_ser->Cnt_len = realloc(Sip_ser->Cnt_len, strlen("Content-Length: 0") + 1)) == NULL) {
 		error("realloc");
 	}	
@@ -1003,10 +1000,10 @@ char* BYE_Handle(Sip_in *client, struct sockaddr_in client_addr,char* msg){
 	}
 	strcpy(Sip_ser->CSeq,client->CSeq);
 
-	if((Sip_ser->UA = realloc(Sip_ser->UA, strlen(client->UA) + 1)) == NULL) {
+	if((Sip_ser->UA = realloc(Sip_ser->UA, strlen(UserAgent) + 1)) == NULL) {
 		error("realloc");
 	}
-	strcpy(Sip_ser->UA,client->UA);
+	strcpy(Sip_ser->UA,UserAgent);
 	if((Sip_ser->Cnt_len = realloc(Sip_ser->Cnt_len, strlen(client->Cnt_len) + 1)) == NULL) {
 		error("realloc");
 	}	

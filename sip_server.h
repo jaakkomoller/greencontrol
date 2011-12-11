@@ -16,6 +16,8 @@
 #define TRUE 2
 #define FALSE 3
 
+char* UserAgent = "User-Agent: Radio-Streamer";
+
 void error(const char *msg)
 {
     perror(msg);

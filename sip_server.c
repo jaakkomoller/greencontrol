@@ -110,8 +110,10 @@ int main(int argc, char *argv[])
 
 	for (i = 0; i < NPACK; i++) {
 		memset(buffer,'\0',BUFLEN);
-		if (recvfrom(sockfd, buffer, sizeof(buffer), 0, (struct sockaddr *) &cli_addr, &clilen)==-1)
+		if (recvfrom(sockfd, buffer, sizeof(buffer), 0, (struct sockaddr *) &cli_addr, &clilen) < 0) {
 			error("recvfrom()");
+			continue;
+		}
 		
 		printf("client: %s\n", inet_ntoa(cli_addr.sin_addr));
 

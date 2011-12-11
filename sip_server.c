@@ -12,7 +12,7 @@ int connection_kick(int *state, char stations[][100], int stations_count, char *
 	int rtp_server_pipe[2]; // This pipes data from transcoder to rtp server
 	int transcoder_pipe[2]; // This pipes data from mp3fetcher to transcoder
 	struct rtp_connection rtp_connection; // The RTP connection object
-	char tempdest[1][100], tempport[1][100];
+	char tempdest[1][100], tempport[1][100], buf[100];
 
 	sprintf(tempdest[0], "%s", destination);
 	sprintf(tempport[0], "%d", port);
@@ -44,13 +44,13 @@ int connection_kick(int *state, char stations[][100], int stations_count, char *
 				*state = STOP; // Stop other threads as well
 			} else {
 				// MP3 fetcher's thread (Also UI)
-				fetch_playlist(transcoder_pipe[1], state, stations[0]);
+				fetch_playlist(transcoder_pipe[1], state, stations[0], buf);
 				*state = STOP; // Stop other threads as well
 			}
 		} else {
 			// Transcoder's thread
 			int fd;
-			fd = open("warning.txt", O_TRUNC | O_RDWR);
+			fd = open("warning.txt", O_TRUNC | O_RDWR | O_CREAT);
 			dup2(fd, 2); 
 			struct transcoder_data coder;
 			init_transcoder();

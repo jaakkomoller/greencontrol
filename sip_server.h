@@ -77,7 +77,7 @@ Sip_body *body_init(void);
 char* OPTIONS_Handle(Sip_in *client, struct sockaddr_in client_addr,char *msg);
 char* INVITE_Handle(Sip_in *client, Sip_body *body,struct sockaddr_in client_addr,char* msg);
 char* UNSUPPORT_Handle(Sip_in *client, struct sockaddr_in client_addr,char* msg);
-//char* UNSUPPORT_INFO_Handle(Sip_in *client, struct sockaddr_in client_addr,char* msg);
+char* UNSUPPORTINFO_Handle(Sip_in *client, struct sockaddr_in client_addr,char* msg);
 char* INFO_Handle(Sip_in *client, struct sockaddr_in client_addr,char* msg);
 char* BYE_Handle(Sip_in *client, struct sockaddr_in client_addr,char *msg);
 

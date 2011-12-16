@@ -320,7 +320,7 @@ connection_kick(&state, stations, station_count, inet_ntoa(cli_addr.sin_addr), a
 		else if(strncmp(Sip_cli->Req,"INFO",4) == 0){
 			
 			if(DTMFflag == UNSUPPORT){
-				strcpy(server_msg,UNSUPPORT_Handle(Sip_cli, cli_addr, server_msg2));
+				strcpy(server_msg,UNSUPPORTINFO_Handle(Sip_cli, cli_addr, server_msg2));
 			}
 			else
 				strcpy(server_msg,INFO_Handle(Sip_cli, cli_addr, server_msg2));
@@ -775,6 +775,111 @@ char* UNSUPPORT_Handle(Sip_in *client, struct sockaddr_in client_addr,char* msg)
 	}
 	strcpy(Sip_ser->CSeq,client->CSeq);
 		
+	if((Sip_ser->UA = realloc(Sip_ser->UA, strlen(UserAgent) + 1)) == NULL) {
+		error("realloc");
+	}
+	strcpy(Sip_ser->UA,UserAgent);
+	if((Sip_ser->Cnt_len = realloc(Sip_ser->Cnt_len, strlen("Content-Length: 0") + 1)) == NULL) {
+		error("realloc");
+	}	
+	strcpy(Sip_ser->Cnt_len,"Content-Length: 0");
+	/*Combine all messages to 1 stream*/
+	if(Sip_ser->Status != NULL){
+		strcpy(msg,Sip_ser->Status);
+		strcat(msg,"\r\n");
+	}
+	if(Sip_ser->Via != NULL){
+		strcat(msg,Sip_ser->Via);
+		strcat(msg,"\r\n");
+	}
+	if(Sip_ser->From != NULL){
+		strcat(msg,Sip_ser->From);
+		strcat(msg,"\r\n");
+	}
+	if(Sip_ser->To != NULL){
+		strcat(msg,Sip_ser->To);
+		strcat(msg,"\r\n");
+	}
+	if(Sip_ser->Call_ID != NULL){
+		strcat(msg,Sip_ser->Call_ID);
+		strcat(msg,"\r\n");
+	}
+	if(Sip_ser->CSeq != NULL){
+		strcat(msg,Sip_ser->CSeq);
+		strcat(msg,"\r\n");
+	}
+	if(Sip_ser->UA != NULL){
+		strcat(msg,Sip_ser->UA);
+		strcat(msg,"\r\n");
+	}
+	if(Sip_ser->Cnt_len != NULL){
+		strcat(msg,Sip_ser->Cnt_len);
+		strcat(msg,"\r\n");
+	}	
+	strcat(msg,"\r\n");
+	free_out(Sip_ser);
+	return(msg);
+}
+char* UNSUPPORTINFO_Handle(Sip_in *client, struct sockaddr_in client_addr,char* msg){
+	char* result = NULL;
+	char buffer[256];
+	memset(buffer,'\0',256);
+	Sip_out *Sip_ser = out_init();
+	
+	if((Sip_ser->Status = realloc(Sip_ser->Status, strlen("SIP/2.0 415 Unsupported Media Type") + 1)) == NULL) {
+		error("realloc");
+	}
+	strcpy(Sip_ser->Status,"SIP/2.0 415 Unsupported Media Type");
+	
+	char delims[] = "rport";
+	result = strtok(client->Via,delims);
+	int i = 0;
+	while(result != NULL){
+		if(i == 0){
+			strcpy(buffer,result);
+			strcat(buffer,"rport=");
+			char port[6];
+			memset(port,'\0',6);
+			int portnum = ntohs(client_addr.sin_port);
+			sprintf(port,"%d",portnum);
+			port[strlen(port)] = '\0';
+			strcat(buffer,port);
+		}
+		else if(i == 1){
+			strcat(buffer,result);
+			strcat(buffer,"r");
+		}
+		else if(i == 2){
+			strcat(buffer,result);
+			
+		}
+		result = strtok(NULL,delims);
+		i++;
+	}
+	if((Sip_ser->Via = realloc(Sip_ser->Via, strlen(buffer) + 1)) == NULL) {
+		error("realloc");
+	}
+	strcpy(Sip_ser->Via,buffer);
+	if((Sip_ser->From = realloc(Sip_ser->From, strlen(client->From) + 1)) == NULL) {
+		error("realloc");
+	}
+	strcpy(Sip_ser->From,client->From);
+
+	if((Sip_ser->To = realloc(Sip_ser->To, strlen(client->To) + 1)) == NULL) {
+		error("realloc");
+	}	
+	strcpy(Sip_ser->To,client->To);
+	
+	if((Sip_ser->Call_ID = realloc(Sip_ser->Call_ID, strlen(client->Call_ID) + 1)) == NULL) {
+		error("realloc");
+	}	
+	strcpy(Sip_ser->Call_ID,client->Call_ID);
+	
+	if((Sip_ser->CSeq = realloc(Sip_ser->CSeq, strlen(client->CSeq) + 1)) == NULL) {
+		error("realloc");
+	}
+	strcpy(Sip_ser->CSeq,client->CSeq);
+	
 	if((Sip_ser->UA = realloc(Sip_ser->UA, strlen(UserAgent) + 1)) == NULL) {
 		error("realloc");
 	}

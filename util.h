@@ -1,6 +1,9 @@
 #ifndef UTIL_H
 #define UTIL_H
 
+#include <sys/socket.h> 
+#include <netinet/in.h> /*constants and structures needed for internet domain addresses.*/
+
 // Sound sample size in bytes
 #define SAMPLE_SIZE 1
 #define RTP_SAMPLING_FREQ 8000
@@ -34,7 +37,7 @@ struct cl_options {
 
 unsigned long random32();
 int parse_opts(int argc, char **argv, struct cl_options *opt);
+ 
 
-
-#endif /* RTP_PACKET_H */
+#endif /* UTIL_H */
 

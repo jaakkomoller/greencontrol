@@ -1,3 +1,7 @@
+#ifndef SIP_SERVER_H
+#define SIP_SERVER_H
+
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -7,7 +11,7 @@
 #include <sys/socket.h> 
 #include <netinet/in.h> /*constants and structures needed for internet domain addresses.*/
 #include <arpa/inet.h>
-
+#include "sip_connection.h"
 
 #define BUFLEN 1510
 #define NPACK 30
@@ -24,24 +28,6 @@ void error(const char *msg)
     exit(1);
 }
 
-
-typedef struct {
-	char* Req;
-	char* Via;
-	char*	From;
-	char* To;
-	char* Call_ID;
-	char* CSeq;
-	char* Accept;
-	char* Cnt_type;
-	char* Allow;
-	char* Max_FWD;
-	char* UA;
-	char* Subject;
-	char* Expires;
-	char* Cnt_len;
-	char* Msg_body;
-}Sip_in;
 
 typedef struct {
 	char* Status;
@@ -74,6 +60,7 @@ Sip_in *in_init(void);
 Sip_out *out_init(void);
 Sip_body *body_init(void);
 
+int sip_server_kick(char stations[][100], int station_count, int portno, int *state);
 char* OPTIONS_Handle(Sip_in *client, struct sockaddr_in client_addr,char *msg);
 char* INVITE_Handle(Sip_in *client, Sip_body *body,struct sockaddr_in client_addr,char* msg);
 char* UNSUPPORT_Handle(Sip_in *client, struct sockaddr_in client_addr,char* msg);
@@ -85,3 +72,4 @@ void free_in(Sip_in* stream);
 void free_out(Sip_out* stream);
 void free_body(Sip_body* stream);
 
+#endif /*SIP_SERVER_H*/

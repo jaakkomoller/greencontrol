@@ -1,4 +1,5 @@
 #include "sip_server.h"
+#include "sip_connection.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/file.h>
@@ -7,12 +8,13 @@
 #include "Transcoder.h"
  /*gcc -std=c99 -g -W -Wall -o ./Sip_server sip_server.c*/
 
-int connection_kick(int *state, char stations[][100], int stations_count, char *destination, int port) {
+int connection_kick(int *state, char stations[][100], int stations_count, char *destination, int port, struct connection *conn) {
 	int err = 0;
 	int rtp_server_pipe[2]; // This pipes data from transcoder to rtp server
 	int transcoder_pipe[2]; // This pipes data from mp3fetcher to transcoder
 	struct rtp_connection rtp_connection; // The RTP connection object
 	char tempdest[1][100], tempport[1][100], buf[100];
+	pid_t trans_pid, rtp_pid, mp3_fetch_pid;
 
 	sprintf(tempdest[0], "%s", destination);
 	sprintf(tempport[0], "%d", port);
@@ -27,65 +29,67 @@ int connection_kick(int *state, char stations[][100], int stations_count, char *
 		goto exit_system_err;
 	} 
 
-	if(fork() == 0) {
+	trans_pid = fork();
+	if(trans_pid == 0) {
 
-		if(fork() == 0) {
-
-			if(fork() == 0) {
-				// RTP server's thread
-				set_destinations(tempdest, tempport, &rtp_connection, 1);
-				init_rtp_connection(&rtp_connection, RTP_SEND_INTERVAL_SEC,
-						RTP_SEND_INTERVAL_USEC, RTP_SAMPLING_FREQ,
-						SAMPLE_SIZE, rtp_server_pipe[0]);
-
-				rtp_connection_kick(&rtp_connection, state);
-
-				free_rtp_connection(&rtp_connection);
-				*state = STOP; // Stop other threads as well
-			} else {
-				// MP3 fetcher's thread (Also UI)
-				fetch_playlist(transcoder_pipe[1], state, stations[0], buf);
-				*state = STOP; // Stop other threads as well
-			}
-		} else {
-			// Transcoder's thread
-			int fd;
-			fd = open("warning.txt", O_TRUNC | O_WRONLY | O_CREAT, S_IRWXU);
-			dup2(fd, 2); 
-			struct transcoder_data coder;
-			init_transcoder();
-			init_transcoder_data(transcoder_pipe[0], rtp_server_pipe[1], &coder);
-			audio_transcode(&coder, state);
-			free_transcode_data(&coder);
-			close(fd);
-			*state = STOP; // Stop other threads as well
-
-		}
+		// Transcoder's thread
+		int fd;
+		fd = open("warning.txt", O_TRUNC | O_WRONLY | O_CREAT, S_IRWXU);
+		dup2(fd, 2); 
+		struct transcoder_data coder;
+		init_transcoder();
+		init_transcoder_data(transcoder_pipe[0], rtp_server_pipe[1], &coder);
+		audio_transcode(&coder, state);
+		free_transcode_data(&coder);
+		close(fd);
+		*state = STOP; // Stop other threads as well
+		exit(0);
 	}
+	mp3_fetch_pid = fork();
+	if(mp3_fetch_pid == 0) {
+
+		// MP3 fetcher's thread (Also UI)
+		fetch_playlist(transcoder_pipe[1], state, stations[0], buf);
+		*state = STOP; // Stop other threads as well
+		exit(0);
+	}
+	rtp_pid = fork();
+	if(rtp_pid == 0) {
+		// RTP server's thread
+		set_destinations(tempdest, tempport, &rtp_connection, 1);
+		init_rtp_connection(&rtp_connection, RTP_SEND_INTERVAL_SEC,
+				RTP_SEND_INTERVAL_USEC, RTP_SAMPLING_FREQ,
+				SAMPLE_SIZE, rtp_server_pipe[0]);
+
+		rtp_connection_kick(&rtp_connection, state);
+
+		free_rtp_connection(&rtp_connection);
+		*state = STOP; // Stop other threads as well
+		exit(0);
+	}
+	conn->trans_pid = trans_pid;
+	conn->mp3_fetch_pid = mp3_fetch_pid;
+	conn->rtp_serv_pid = rtp_pid;
 
 exit_system_err:
 	if(err != 0)
 		perror("Error with syscalls: ");
 exit:
-	return 0;
+	return err;
 
 
 }
 
-//int sip_server_kick(char channel_list[][100])
-int main(int argc, char *argv[])
+int sip_server_kick(char stations[][100], int station_count, int portno, int *state)
+//int main(int argc, char *argv[])
 {
 	int sockfd; /*File descriptor for socket*/
-	int portno; /*port number*/
 	int i;
 	socklen_t clilen; /*stores the size of the address of the client. This is needed for the accept system call.*/
 	char buffer[BUFLEN]; /*Buffer for reading each datagram*/
 	struct sockaddr_in serv_addr, cli_addr;
+	struct node *conn_list; /* List of connected SIP clients */
 
-
-	char stations[MAX_STATIONS][100];
-	int station_count = fetch_station_info(stations, MAX_STATIONS);
-	int state = RUNNING;
 
 	/*struct sockaddr_in
 	{
@@ -98,7 +102,6 @@ int main(int argc, char *argv[])
 	if (sockfd < 0) 
         error("ERROR opening socket");
 	memset((char *) &serv_addr,'\0',sizeof(serv_addr)); /*set all addresses to 0*/
-	portno = 50000; /*fundamentally set to 50000*/
 	serv_addr.sin_family = AF_INET; /*Address family*/
 	serv_addr.sin_addr.s_addr = INADDR_ANY; /* Gets IP address of the host*/
 	serv_addr.sin_port = htons(portno); /*convert to network byte order*/
@@ -294,9 +297,13 @@ int main(int argc, char *argv[])
 				printf("Supports!\n");
 				strcpy(server_msg,INVITE_Handle(Sip_cli, body, cli_addr, server_msg2));
 char temp[100];
-sprintf(temp, "%s", &body->m[8]);
+strcpy(temp, &body->m[8]);
 strtok(temp, " ");
-connection_kick(&state, stations, station_count, inet_ntoa(cli_addr.sin_addr), atoi(temp));
+struct connection conn;
+	memcpy(&conn.sip_conn, Sip_cli, sizeof(Sip_in));
+	conn.port = atoi(temp);
+	conn.is_connected = 0;
+	append(&conn_list, &conn);
 			}/*If PCMU is not supported by the client*/
 			else if(RTPflag != SUPPORT){
 				printf("No support\n");
@@ -310,6 +317,13 @@ connection_kick(&state, stations, station_count, inet_ntoa(cli_addr.sin_addr), a
 		}
 		else if(strncmp(Sip_cli->Req,"ACK",3) == 0 && Unsupportflag == FALSE){
 			printf("ACK REC\n");
+struct node *conn = NULL;
+for (conn = conn_list; conn != NULL; conn = conn_list->link)
+	if(strcmp(conn_list->data.sip_conn.Call_ID, Sip_cli->Call_ID) == 0)
+		break;
+if(conn != NULL && connection_kick(state, stations, station_count, inet_ntoa(cli_addr.sin_addr), conn->data.port, &conn->data) == 0) {
+	conn_list->data.is_connected = 1;
+}
 			/*THIS IS THE CASE WHEN ACK FROM 200 OK MSG IS RECEIVED, This is where we start the streaming*/
 		}
 		else if(strncmp(Sip_cli->Req,"ACK",3) == 0 && Unsupportflag == TRUE){

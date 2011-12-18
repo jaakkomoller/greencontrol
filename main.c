@@ -39,7 +39,7 @@ int main(int argc, char *argv[]) {
 		} else {
 			// Transcoder's thread
 			int fd;
-			fd = open("warning.txt", O_TRUNC | O_RDWR | O_CREAT);
+			fd = open("warning.txt", O_TRUNC | O_WRONLY | O_CREAT, S_IRWXU);
 			dup2(fd, 2); 
 			struct transcoder_data coder;
 			init_transcoder();

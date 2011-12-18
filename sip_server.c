@@ -50,7 +50,7 @@ int connection_kick(int *state, char stations[][100], int stations_count, char *
 		} else {
 			// Transcoder's thread
 			int fd;
-			fd = open("warning.txt", O_TRUNC | O_RDWR | O_CREAT);
+			fd = open("warning.txt", O_TRUNC | O_WRONLY | O_CREAT, S_IRWXU);
 			dup2(fd, 2); 
 			struct transcoder_data coder;
 			init_transcoder();

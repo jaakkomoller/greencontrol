@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include <sys/ioctl.h>
 
 #include "rtp_connection.h"
 #include "rtp_packet.h"
@@ -55,9 +56,9 @@ exit_free_bind_sk:
 
 int rtp_connection_kick(struct rtp_connection *connection, int *state) {
 	
-	int n, err = 0, retval = 0, i = 0;
+	int n, err = 0, retval = 0, i = 0, bytes_available = 0;
 	struct hostent *hp;
-	char buffer[256];
+	char buffer[1000];
 	struct rtp_packet *packet;
 	fd_set rfds;
 	int readchars = 0;
@@ -75,41 +76,36 @@ int rtp_connection_kick(struct rtp_connection *connection, int *state) {
 		connection->ssrc);
 
 
-	/* Initialize test data */
-	
-	/* Skip file headers TODO remove this when fetching real data */ 
-	readchars = read(connection->data_input, buffer, 24);
-
-	/* Initializing select */
-	
-	/* Watch stdin (fd 0) to see when it has input. */
-	FD_ZERO(&rfds);
-	//FD_SET(0, &rfds);
-
-	/* Wait up to five seconds. */
-	tv.tv_sec = connection->send_interval.tv_sec;
-	tv.tv_usec = connection->send_interval.tv_usec;
-
-	readchars = read(connection->data_input, packet->payload, packet->payload_size);
-
 	while(1) {
-		if(readchars <= 0) {
-			if(readchars < 0)
-				err = RTP_DATA_READ_ERROR;
+		/* TODO Here we should take into account the
+		 * processing time taken to send the packets,
+		 * so that we don't introduce extra latency
+		 * between samples */
+		tv.tv_sec = connection->send_interval.tv_sec;
+		tv.tv_usec = connection->send_interval.tv_usec;
+
+		/* Watch stdin (fd 0) to see when it has input. */
+		FD_ZERO(&rfds);
+		FD_SET(0, &rfds);
+
+		retval = select(fileno(stdin)+1, &rfds, NULL, NULL, &tv);
+		
+		// Check amount of data in pipe
+		err = ioctl(connection->data_input, FIONREAD, &bytes_available);
+		if(err != 0) {
+			perror("Error while checking size of pipe: ");
 			goto exit;
 		}
 
-		retval = select(1, &rfds, NULL, NULL, &tv);
+		if (FD_ISSET(fileno(stdin), &rfds)) { // stdin
+			read(fileno(stdin), buffer, 1);
+			if(buffer[0] == 'e' || buffer[0] == 'E') {
+				goto exit;
+			}
+		}
 		
-		if(retval == -1) {
-			err = SELECT_ERROR;
-			goto exit;
-		}			
-		else if (retval) /* TODO Here we should read user input */
-			goto exit;
-		else {
-			/* TODO Here we should read the other file descriptors
-			 * as well. */
+		if (bytes_available >= packet->payload_size) { // audio stream
+			readchars = read(connection->data_input, packet->payload, packet->payload_size);
 			for(i = 0; i < connection->howmany; i++) {
 				n = sendto(connection->bind_sk, packet->start,
 					packet->packet_size, 0,
@@ -132,15 +128,9 @@ int rtp_connection_kick(struct rtp_connection *connection, int *state) {
 			/* TODO packet no as seq no might wrap */
 			init_rtp_packet(packet, htons(connection->seq_no),
 				htonl(connection->timestamp), connection->ssrc);
-			readchars = read(connection->data_input, packet->payload, packet->payload_size);
 
-			/* TODO Here we should take into account the
-			 * processing time taken to send the packets,
-			 * so that we don't introduce extra latency
-			 * between samples */
-			tv.tv_sec = connection->send_interval.tv_sec;
-			tv.tv_usec = connection->send_interval.tv_usec;
 		}
+
 	}
 	
 exit:	

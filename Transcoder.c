@@ -123,7 +123,6 @@ static void encode(int in, int out, AVCodecContext *AudioCodecCtxEN, long int sa
 		perror("Error while checking size of pipe: ");
 		exit(1);
 	}
-
 	while(bytes_available >= bytes_to_read && read(in, buf_in, bytes_to_read) > 0 && i < 60000){
 		out_sizeEN = avcodec_encode_audio(AudioCodecCtxEN, (uint8_t *)outbufEN, outbuf_size, (short int*)(buf_in));
 		sample = *outbufEN / 256;
@@ -147,6 +146,9 @@ void audio_transcode(struct transcoder_data *data, int *state)
 	uint8_t *outbuf;
 	uint8_t *inbuf;
 
+	fd_set rfds;
+	int selectid;
+
 	int p[2]; // This pipes data from decode to encode
 
 	AVPacket Audiopkt;
@@ -168,26 +170,48 @@ void audio_transcode(struct transcoder_data *data, int *state)
 	/* decode until eof */
 	Audiopkt.data = inbuf;
 
-	while((av_read_frame(data->inputFormatCtx, &Audiopkt)) >= 0){
-		while(Audiopkt.size > 0) {
-			out_size = AVCODEC_MAX_AUDIO_FRAME_SIZE;
-			length = avcodec_decode_audio3(data->AudioCodecCtx, (short*) outbuf, &out_size, &Audiopkt);// outbuf = decompressed frame size in bytes
+	while(1) {
+	
+		FD_ZERO(&rfds);
+		FD_SET(fileno(stdin), &rfds);
+		FD_SET(data->transcoder_in, &rfds);
 
-			if(length < 0) {
+		selectid = select(data->transcoder_in+1, &rfds, NULL, NULL,NULL);
+
+		if (selectid <= 0)
+		{
+			perror("Select");
+			break;
+		}
+		
+		if (FD_ISSET(fileno(stdin), &rfds)) {
+			read(fileno(stdin), inbuf, 1);
+			if(inbuf[0] == 'e' || inbuf[0] == 'E')
 				break;
+		}
+
+		if (FD_ISSET(data->transcoder_in, &rfds)) {
+
+			if(av_read_frame(data->inputFormatCtx, &Audiopkt) < 0)
+				break;
+			while(Audiopkt.size > 0) {
+				out_size = AVCODEC_MAX_AUDIO_FRAME_SIZE;
+				length = avcodec_decode_audio3(data->AudioCodecCtx, (short*) outbuf, &out_size, &Audiopkt);// outbuf = decompressed frame size in bytes
+
+				if(length < 0) {
+					break;
+				}
+				if (out_size > 0) {
+					/*if a frame has been decoded, output it*/ 
+					write(p[1], outbuf, out_size);
+					encode(p[0], data->transcoder_out, data->AudioCodecCtxEN, data->inputFormatCtx->streams[0]->codec->sample_rate);
+				}
+				Audiopkt.size -= length;
+				Audiopkt.data += length;
+				memset(outbuf, 0, sizeof(uint8_t) * AVCODEC_MAX_AUDIO_FRAME_SIZE);
 			}
-			if (out_size > 0) {
-				/*if a frame has been decoded, output it*/ 
-				write(p[1], outbuf, out_size);
-				encode(p[0], data->transcoder_out, data->AudioCodecCtxEN, data->inputFormatCtx->streams[0]->codec->sample_rate);
-			}
-			Audiopkt.size -= length;
-			Audiopkt.data += length;
-			memset(outbuf, 0, sizeof(uint8_t) * AVCODEC_MAX_AUDIO_FRAME_SIZE);
 		}
 	}
-
-	printf("transcoder quitting\n");
 
 	free(outbuf);
 	free(inbuf);

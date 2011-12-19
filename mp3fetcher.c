@@ -220,12 +220,7 @@ loop:
 		}
 	} while(selection != 'E');
 
-
-
-
-	printf("\nIt's over\n");
-
-	exit(0);
+	return 0;
 }
 
 

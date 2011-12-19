@@ -11,6 +11,7 @@
 #include <regex.h>
 #include <stdlib.h>
 #include <stdlib.h>
+#include <sys/fcntl.h>
 #include "mp3fetcher.h"
 
 #define SA struct sockaddr
@@ -455,6 +456,11 @@ int fetch_file(int outfile, int *state, char* IP, char* PORT, char *buf)
 	int ispaused = 0;
 
 	int count=0;
+	int flags = 0;
+
+	if (-1 == (flags = fcntl(sockfd, F_GETFL, 0)))
+		flags = 0;
+	fcntl(sockfd, F_SETFL, flags | O_NONBLOCK);
 
 	//Wait for some input
 	for(;;)
@@ -472,79 +478,7 @@ int fetch_file(int outfile, int *state, char* IP, char* PORT, char *buf)
 
 		if (selectid > 0) /* something to read */
 		{
-			if (FD_ISSET(sockfd, &readsetfds)) //MP3 stream
-			{
-
-				if ((read_bytes = recv(sockfd, buffer, 417,0))<0)
-				{
-					perror("recv");
-					return -1;
-				}
-
-				sum=read_bytes+read_bytes_prev; //Calculate the maximum amount of data that can be written to the buffer. It consists of the data that was just read and the older data, which is in the buffer already, that was not needed before to achieve a full frame.
-
-
-				if (sum >= FRAMESIZE) // A full mp3 frame fetched so write it to the buffer
-				{
-
-					if (!ispaused)
-						write(outfile,buffer,FRAMESIZE-read_bytes_prev);
-					count++;
-
-					if (count >=5) // Call the transcoder function when there are 5 full frames in the buffer
-					{
-						goto call_transcoder;
-					}
-
-extra_bytes:  // Calculate the extra bytes and write them to the buffer too
-
-					read_bytes_prev=sum-(FRAMESIZE-read_bytes_prev);
-
-					if (read_bytes-read_bytes_prev<-1)
-					{
-					}
-					else
-					{
-						int j;
-						for(j=0;j<read_bytes_prev;j++)
-						{
-							new_buffer[j] = buffer[read_bytes-read_bytes_prev+1+j];
-						}
-						if (!ispaused)
-							write(outfile,new_buffer,read_bytes_prev);
-					}
-
-					goto exit_recv;
-
-				}
-
-
-				else // (sum <FRAMESIZE)
-				{
-					if (!ispaused)
-						write(outfile,buffer,read_bytes); // Add these bytes to the buffer. It's not a full frame though
-					read_bytes_prev=sum;
-					goto exit_recv;
-				}
-
-call_transcoder:
-				{
-
-					if (ispaused==1) // pause is pressed so do not call the transcoder fucntion
-					{
-						//				TODO:  clear the pipe / buffer, 417*count
-					}
-					else // pause is not pressed so call the transcoder function
-					{
-						count=0;
-						goto extra_bytes;  // Check if there were some more bytes available
-					}
-
-				}
-
-			}
-exit_recv:
-			if (FD_ISSET(0, &readsetfds)) //USER INPUT
+			if (FD_ISSET(0, &readsetfds)) //USER INPUT (needs to be read first)
 			{
 				char menu;
 				scanf("%s", buf);
@@ -566,6 +500,19 @@ exit_recv:
 				}
 
 				return menu;
+			}
+			if (FD_ISSET(sockfd, &readsetfds)) //MP3 stream
+			{
+
+				if ((read_bytes = recv(sockfd, buffer, 417,0))<0)
+				{
+					perror("recv");
+					return -1;
+				}
+
+				if (!ispaused)
+					write(outfile,buffer,read_bytes);
+
 			}
 		}
 	}

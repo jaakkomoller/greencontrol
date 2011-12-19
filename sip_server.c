@@ -55,7 +55,7 @@ int connection_kick(int *state, char stations[][100], int stations_count, char *
 		int fd;
 		fd = open("warning.txt", O_TRUNC | O_WRONLY | O_CREAT, S_IRWXU);
 		dup2(fd, fileno(stderr)); // Output warning data to warning.txt
-
+		
 		dup2(transcoder_control_pipe[0], fileno(stdin)); // Control data from stdin
 
 		struct transcoder_data coder;
@@ -72,9 +72,14 @@ int connection_kick(int *state, char stations[][100], int stations_count, char *
 
 		// MP3 fetcher's thread (Also UI)
 
+		int fd;
+		fd = open("/dev/null", O_RDWR);
+		dup2(fd, fileno(stdout)); // Output menu to /dev/null
+
 		dup2(mp3_fetcher_control_pipe[0], fileno(stdin)); // Control data from stdin
 
-		fetch_playlist(transcoder_pipe[1], state, stations[0], buf);
+//		fetch_playlist(transcoder_pipe[1], state, stations[0], buf);
+		start_gui(transcoder_pipe[1], state, stations, stations_count);
 		*state = STOP; // Stop other threads as well
 		exit(0);
 	}
@@ -83,7 +88,7 @@ int connection_kick(int *state, char stations[][100], int stations_count, char *
 		// RTP server's thread
 
 		dup2(rtp_server_control_pipe[0], fileno(stdin)); // Control data from stdin
-
+		
 		set_destinations(tempdest, tempport, &rtp_connection, 1);
 		init_rtp_connection(&rtp_connection, RTP_SEND_INTERVAL_SEC,
 				RTP_SEND_INTERVAL_USEC, RTP_SAMPLING_FREQ,
@@ -298,12 +303,12 @@ int sip_server_kick(char stations[][100], int station_count, int portno, int *st
 
 						result = strstr(result,"=");
 						result = strtok(result,"=");
-						DTMF_signal = atoi(result);
-						if(DTMF_signal < 0 || DTMF_signal > 9){
+						DTMF_signal = result[0];
+						if(DTMF_signal < '0' || DTMF_signal > '9'){
 							printf("Unsupported");	
 							DTMFflag = UNSUPPORT;
 						}			
-						printf("%i\n",DTMF_signal);
+						printf("%c\n",DTMF_signal);
 
 					}
 				}
@@ -367,7 +372,17 @@ if(conn != NULL && connection_kick(state, stations, station_count, inet_ntoa(cli
 			}
 			else {
 				strcpy(server_msg,INFO_Handle(Sip_cli, cli_addr, server_msg2));
-				printf("signal: %d\n", DTMF_signal);
+				printf("signal: %c\n", DTMF_signal);
+struct node *conn = NULL;
+for (conn = conn_list; conn != NULL; conn = conn_list->link)
+	if(strcmp(conn_list->data.sip_conn.Call_ID, Sip_cli->Call_ID) == 0)
+		break;
+if(conn != NULL && conn_list->data.is_connected == 1) {
+	char temp = '\n';
+	write(conn_list->data.mp3_fetcher_control, &DTMF_signal, 1);
+	write(conn_list->data.mp3_fetcher_control, &temp, 1);
+}
+
 			}
 			if (sendto(sockfd, server_msg,strlen(server_msg), 0, (struct sockaddr *) &cli_addr, clilen)==-1)
 				error("sendto");

@@ -184,6 +184,7 @@ int start_gui(int outfile, int *state, char stations[][100], int station_count) 
 		getchar();
 
 loop:
+printf("read: %s\n", menu);
 		selection = toupper(menu[0]);
 		int_selection = atoi(menu);
 

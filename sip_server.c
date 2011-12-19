@@ -47,6 +47,31 @@ int connection_kick(int *state, char stations[][100], int stations_count, char *
 		goto exit_system_err;
 	} 
 
+	conn->mp3_fetcher_control = mp3_fetcher_control_pipe[1];
+	conn->transcoder_control = transcoder_control_pipe[1];
+	conn->rtp_server_control = rtp_server_control_pipe[1];
+
+	mp3_fetch_pid = fork();
+	if(mp3_fetch_pid == 0) {
+
+		// MP3 fetcher's thread (Also UI)
+
+		int fd;
+		fd = open("/dev/null", O_RDWR);
+		dup2(fd, fileno(stdout)); // Output menu to /dev/null
+
+		dup2(mp3_fetcher_control_pipe[0], fileno(stdin)); // Control data from stdin
+
+//		fetch_playlist(transcoder_pipe[1], state, stations[0], buf);
+		start_gui(transcoder_pipe[1], state, stations, stations_count);
+		*state = STOP; // Stop other threads as well
+
+		fprintf(stderr, "MP3 fetcher quitting\n");
+		char *temp = "E\n";
+		write(conn->transcoder_control, temp, 2);
+		sleep(1);
+		exit(0);
+	}
 
 	trans_pid = fork();
 	if(trans_pid == 0) {
@@ -65,24 +90,14 @@ int connection_kick(int *state, char stations[][100], int stations_count, char *
 		free_transcode_data(&coder);
 		close(fd);
 		*state = STOP; // Stop other threads as well
+
+		printf("Transcoder quitting\n");
+		char *temp = "E\n";
+		write(conn->rtp_server_control, temp, 2);
+		sleep(1);
 		exit(0);
 	}
-	mp3_fetch_pid = fork();
-	if(mp3_fetch_pid == 0) {
 
-		// MP3 fetcher's thread (Also UI)
-
-		int fd;
-		fd = open("/dev/null", O_RDWR);
-		dup2(fd, fileno(stdout)); // Output menu to /dev/null
-
-		dup2(mp3_fetcher_control_pipe[0], fileno(stdin)); // Control data from stdin
-
-//		fetch_playlist(transcoder_pipe[1], state, stations[0], buf);
-		start_gui(transcoder_pipe[1], state, stations, stations_count);
-		*state = STOP; // Stop other threads as well
-		exit(0);
-	}
 	rtp_pid = fork();
 	if(rtp_pid == 0) {
 		// RTP server's thread
@@ -98,19 +113,53 @@ int connection_kick(int *state, char stations[][100], int stations_count, char *
 
 		free_rtp_connection(&rtp_connection);
 		*state = STOP; // Stop other threads as well
+
+		printf("RTP server quitting\n");
+		sleep(1);
 		exit(0);
 	}
 	conn->trans_pid = trans_pid;
 	conn->mp3_fetch_pid = mp3_fetch_pid;
 	conn->rtp_serv_pid = rtp_pid;
-	conn->mp3_fetcher_control = mp3_fetcher_control_pipe[1];
-	conn->transcoder_control = transcoder_control_pipe[1];
-	conn->rtp_server_control = rtp_server_control_pipe[1];
 
 exit_system_err:
 	if(err != 0)
 		perror("Error with syscalls: ");
 exit:
+	return err;
+}
+
+struct connection *get_connection(char *call_id, struct node *conn_list) {
+	struct node *conn = NULL;
+	struct connection *ret = NULL;
+	for (conn = conn_list; conn != NULL; conn = conn_list->link)
+		if(strcmp(conn_list->data.sip_conn->Call_ID, call_id) == 0) {
+			ret = &conn->data;
+			break;
+		}
+	return ret;
+}
+
+int kill_connection(struct connection *conn, struct node **conn_list) {
+	int err = 0;
+	char *temp = "E\n";
+
+	write(conn->mp3_fetcher_control, temp, 2);
+	
+	del(conn_list, conn->sip_conn->Call_ID);
+	
+
+	return err;
+}
+
+int kill_connection_id(char *conn_id, struct node **conn_list) {
+	int err = 0;
+	struct connection *conn = get_connection(conn_id, *conn_list);
+	
+	if(conn != NULL)
+		kill_connection(conn, conn_list);
+
+
 	return err;
 }
 
@@ -145,7 +194,7 @@ int sip_server_kick(char stations[][100], int station_count, int portno, int *st
 	char* result = NULL;
 	int Unsupportflag = FALSE;
 
-	for (i = 0; i < NPACK; i++) {
+	while (1) {
 		memset(buffer,'\0',BUFLEN);
 		clilen = sizeof(cli_addr);
 		if (recvfrom(sockfd, buffer, BUFLEN, 0, (struct sockaddr *) &cli_addr, &clilen) < 0) {
@@ -159,6 +208,7 @@ int sip_server_kick(char stations[][100], int station_count, int portno, int *st
 		Sip_body *body = body_init();
 		result = strtok(buffer,"\n");
 		int ind = 0;
+		int conn_stored = 0;
 			
 		int bodyflag = 0;
 		int DTMFflag = 0;
@@ -328,16 +378,17 @@ int sip_server_kick(char stations[][100], int station_count, int portno, int *st
 		else if(strncmp(Sip_cli->Req,"INVITE",6) == 0){
 			/*If the codec is supported*/
 			if(RTPflag == SUPPORT){
-				printf("Supports!\n");
+				printf("Supports!");
 				strcpy(server_msg,INVITE_Handle(Sip_cli, body, cli_addr, server_msg2));
-char temp[100];
-strcpy(temp, &body->m[8]);
-strtok(temp, " ");
-struct connection conn;
-	memcpy(&conn.sip_conn, Sip_cli, sizeof(Sip_in));
-	conn.port = atoi(temp);
-	conn.is_connected = 0;
-	append(&conn_list, &conn);
+				char temp[100];
+				strcpy(temp, &body->m[8]);
+				strtok(temp, " ");
+				struct connection conn;
+				conn.sip_conn = Sip_cli;
+				conn.port = atoi(temp);
+				conn.is_connected = 0;
+				append(&conn_list, &conn);
+				conn_stored = 1;
 			}/*If PCMU is not supported by the client*/
 			else if(RTPflag != SUPPORT){
 				printf("No support\n");
@@ -350,15 +401,22 @@ struct connection conn;
 			}
 		}
 		else if(strncmp(Sip_cli->Req,"ACK",3) == 0 && Unsupportflag == FALSE){
-			printf("ACK REC\n");
-struct node *conn = NULL;
-for (conn = conn_list; conn != NULL; conn = conn_list->link)
-	if(strcmp(conn_list->data.sip_conn.Call_ID, Sip_cli->Call_ID) == 0)
-		break;
-if(conn != NULL && connection_kick(state, stations, station_count, inet_ntoa(cli_addr.sin_addr), conn->data.port, &conn->data) == 0) {
-	conn_list->data.is_connected = 1;
-}
 			/*THIS IS THE CASE WHEN ACK FROM 200 OK MSG IS RECEIVED, This is where we start the streaming*/
+			printf("ACK REC");
+			struct node *conn = NULL;
+			for (conn = conn_list; conn != NULL; conn = conn_list->link)
+				display(conn);
+			for (conn = conn_list; conn != NULL; conn = conn_list->link)
+				if(strcmp(conn_list->data.sip_conn->Call_ID, Sip_cli->Call_ID) == 0)
+					break;
+			if(conn == NULL)
+				printf("Connection not found\n");
+			if(conn != NULL && connection_kick(state, stations, station_count, inet_ntoa(cli_addr.sin_addr), conn->data.port, &conn->data) == 0) {
+				char *temp = "1\n";
+				write(conn_list->data.mp3_fetcher_control, temp, 2); /* Start with channel 1 */
+				conn_list->data.is_connected = 1;
+				printf("Kicked\n");
+			}
 		}
 		else if(strncmp(Sip_cli->Req,"ACK",3) == 0 && Unsupportflag == TRUE){
 			printf("ACK Unsupported REC\n");
@@ -371,17 +429,17 @@ if(conn != NULL && connection_kick(state, stations, station_count, inet_ntoa(cli
 				strcpy(server_msg,UNSUPPORTINFO_Handle(Sip_cli, cli_addr, server_msg2));
 			}
 			else {
+				struct node *conn = NULL;
 				strcpy(server_msg,INFO_Handle(Sip_cli, cli_addr, server_msg2));
-				printf("signal: %c\n", DTMF_signal);
-struct node *conn = NULL;
-for (conn = conn_list; conn != NULL; conn = conn_list->link)
-	if(strcmp(conn_list->data.sip_conn.Call_ID, Sip_cli->Call_ID) == 0)
-		break;
-if(conn != NULL && conn_list->data.is_connected == 1) {
-	char temp = '\n';
-	write(conn_list->data.mp3_fetcher_control, &DTMF_signal, 1);
-	write(conn_list->data.mp3_fetcher_control, &temp, 1);
-}
+				for (conn = conn_list; conn != NULL; conn = conn_list->link)
+					if(strcmp(conn_list->data.sip_conn->Call_ID, Sip_cli->Call_ID) == 0)
+						break;
+				if(conn != NULL && conn_list->data.is_connected == 1) {
+					char temp = '\n';
+					write(conn_list->data.mp3_fetcher_control, &DTMF_signal, 1);
+					write(conn_list->data.mp3_fetcher_control, &temp, 1);
+					printf("Channel changed to %c\n", DTMF_signal);
+				}
 
 			}
 			if (sendto(sockfd, server_msg,strlen(server_msg), 0, (struct sockaddr *) &cli_addr, clilen)==-1)
@@ -393,14 +451,19 @@ if(conn != NULL && conn_list->data.is_connected == 1) {
 				printf("5\n");
 				error("sendto");
 			}
+			kill_connection_id(Sip_cli->Call_ID, &conn_list);
+			if(conn_list == NULL)
+				printf("conn_list == NULL\n");
 		}
-
-		free_in(Sip_cli);
+		
+		if(!conn_stored)
+			free_in(Sip_cli);
 		free_body(body);
 		free(server_msg);
 		free(server_msg2);
 	}
 	close(sockfd);
+	printf("sip server quitting\n");
 	return 0; 
 }
 
@@ -1214,30 +1277,6 @@ char* BYE_Handle(Sip_in *client, struct sockaddr_in client_addr,char* msg){
 	return(msg);
 }
 
-/*Initialize struct Sip_in*/
-Sip_in *in_init(void){
-	Sip_in *stream;
-	if((stream = malloc(BUFLEN)) == NULL) {
-		error("realloc");
-	}
-	stream->Req = NULL;
-	stream->Via = NULL;
-	stream->From = NULL;
-	stream->To = NULL;
-	stream->Call_ID = NULL;
-	stream->CSeq = NULL;
-	stream->Accept = NULL;
-	stream->Cnt_type = NULL;
-	stream->Allow = NULL;
-	stream->Max_FWD = NULL;
-	stream->UA = NULL;
-	stream->Subject = NULL;
-	stream->Expires = NULL;
-	stream->Cnt_len = NULL;
-	stream->Msg_body = NULL;
-	return(stream);
-}
-
 /*Initialize struct Sip_out*/
 Sip_out *out_init(void){
 	Sip_out *stream;
@@ -1275,26 +1314,6 @@ Sip_body *body_init(void){
 	stream->a2 = NULL;
 	stream->a3 = NULL;
 	return(stream);
-}
-
-/*free struct Sip_in*/
-void free_in(Sip_in* stream){
-	free(stream->Req);
-	free(stream->Via);
-	free(stream->From);
-	free(stream->To);
-	free(stream->Call_ID);
-	free(stream->CSeq);
-	free(stream->Accept);
-	free(stream->Cnt_type);
-	free(stream->Allow);
-	free(stream->Max_FWD);
-	free(stream->UA);
-	free(stream->Subject);
-	free(stream->Expires);
-	free(stream->Cnt_len);
-	free(stream->Msg_body);
-	free(stream);
 }
 
 /*free struct Sip_out*/

@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#define BUFLEN 1510
 
 typedef struct {
 	char* Req;
@@ -26,7 +27,7 @@ typedef struct {
 }Sip_in;
 
 struct connection {
-	Sip_in sip_conn;
+	Sip_in *sip_conn;
 	int port, is_connected;
 	pid_t trans_pid, mp3_fetch_pid, rtp_serv_pid;
 	int mp3_fetcher_control; // This pipes control data to mp3 fetcher
@@ -46,5 +47,8 @@ void del(struct node **, char *);
 void in_middle(struct node **, int, struct connection *);
 int count(struct node *);
 void display(struct node *);
+
+Sip_in *in_init(void);
+void free_in(Sip_in* stream);
 
 #endif /*SIP_CONNECTION_H*/

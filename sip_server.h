@@ -13,8 +13,6 @@
 #include <arpa/inet.h>
 #include "sip_connection.h"
 
-#define BUFLEN 1510
-#define NPACK 30
 #define SUPPORT 1
 #define UNSUPPORT 4
 #define TRUE 2
@@ -56,7 +54,6 @@ typedef struct {
 	char* a3;
 
 }Sip_body;
-Sip_in *in_init(void);
 Sip_out *out_init(void);
 Sip_body *body_init(void);
 
@@ -68,7 +65,6 @@ char* UNSUPPORTINFO_Handle(Sip_in *client, struct sockaddr_in client_addr,char* 
 char* INFO_Handle(Sip_in *client, struct sockaddr_in client_addr,char* msg);
 char* BYE_Handle(Sip_in *client, struct sockaddr_in client_addr,char *msg);
 
-void free_in(Sip_in* stream);
 void free_out(Sip_out* stream);
 void free_body(Sip_body* stream);
 

@@ -184,7 +184,6 @@ int start_gui(int outfile, int *state, char stations[][100], int station_count) 
 		getchar();
 
 loop:
-printf("read: %s\n", menu);
 		selection = toupper(menu[0]);
 		int_selection = atoi(menu);
 
@@ -221,12 +220,7 @@ printf("read: %s\n", menu);
 		}
 	} while(selection != 'E');
 
-
-
-
-	printf("\nIt's over\n");
-
-	exit(0);
+	return 0;
 }
 
 

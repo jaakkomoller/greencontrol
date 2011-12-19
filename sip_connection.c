@@ -41,7 +41,7 @@ void display(struct node *q)
 	}
 	while(q!=NULL)
 	{
-//		printf("\n%d",q->data);
+		printf("%s\n",q->data.sip_conn->Call_ID);
 		q=q->link;
 	}
 last:
@@ -133,14 +133,16 @@ void del(struct node**q, char *call_id)
 		temp=*q;
 		while(temp!=NULL)
 		{
-			if(strcmp(temp->data.sip_conn.Call_ID, call_id))
+			if(strcmp(temp->data.sip_conn->Call_ID, call_id) == 0)
 			{
 				if(temp==*q)         /* First Node case */
 					*q=temp->link;  /* shifted the header node */
 				else
 					old->link=temp->link;
 
+				free_in(temp->data.sip_conn);
 				free(temp);
+				temp = NULL;
 				flag=1;
 			}
 			else
@@ -150,10 +152,55 @@ void del(struct node**q, char *call_id)
 			}
 		}
 		if(flag==0)
-			printf("\nData Not Found...");
+			printf("Data Not Found...\n");
 		else
-			printf("\nData Deleted...Tap a key to continue");
+			printf("Data Deleted...Tap a key to continue\n");
 	}
 last:
 	return;
 }
+
+/*Initialize struct Sip_in*/
+Sip_in *in_init(void){
+	Sip_in *stream;
+	if((stream = malloc(BUFLEN)) == NULL) {
+		error("realloc");
+	}
+	stream->Req = NULL;
+	stream->Via = NULL;
+	stream->From = NULL;
+	stream->To = NULL;
+	stream->Call_ID = NULL;
+	stream->CSeq = NULL;
+	stream->Accept = NULL;
+	stream->Cnt_type = NULL;
+	stream->Allow = NULL;
+	stream->Max_FWD = NULL;
+	stream->UA = NULL;
+	stream->Subject = NULL;
+	stream->Expires = NULL;
+	stream->Cnt_len = NULL;
+	stream->Msg_body = NULL;
+	return(stream);
+}
+
+/*free struct Sip_in*/
+void free_in(Sip_in* stream){
+	free(stream->Req);
+	free(stream->Via);
+	free(stream->From);
+	free(stream->To);
+	free(stream->Call_ID);
+	free(stream->CSeq);
+	free(stream->Accept);
+	free(stream->Cnt_type);
+	free(stream->Allow);
+	free(stream->Max_FWD);
+	free(stream->UA);
+	free(stream->Subject);
+	free(stream->Expires);
+	free(stream->Cnt_len);
+	free(stream->Msg_body);
+	free(stream);
+}
+

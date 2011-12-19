@@ -12,6 +12,9 @@ int connection_kick(int *state, char stations[][100], int stations_count, char *
 	int err = 0;
 	int rtp_server_pipe[2]; // This pipes data from transcoder to rtp server
 	int transcoder_pipe[2]; // This pipes data from mp3fetcher to transcoder
+	int mp3_fetcher_control_pipe[2]; // This pipes control data to mp3 fetcher
+	int transcoder_control_pipe[2]; // This pipes control data to transcoder
+	int rtp_server_control_pipe[2]; // This pipes control data to rtp server
 	struct rtp_connection rtp_connection; // The RTP connection object
 	char tempdest[1][100], tempport[1][100], buf[100];
 	pid_t trans_pid, rtp_pid, mp3_fetch_pid;
@@ -29,13 +32,32 @@ int connection_kick(int *state, char stations[][100], int stations_count, char *
 		goto exit_system_err;
 	} 
 
+	err = pipe(mp3_fetcher_control_pipe);
+	if(err != 0) {
+		goto exit_system_err;
+	} 
+
+	err = pipe(transcoder_control_pipe);
+	if(err != 0) {
+		goto exit_system_err;
+	} 
+
+	err = pipe(rtp_server_control_pipe);
+	if(err != 0) {
+		goto exit_system_err;
+	} 
+
+
 	trans_pid = fork();
 	if(trans_pid == 0) {
 
 		// Transcoder's thread
 		int fd;
 		fd = open("warning.txt", O_TRUNC | O_WRONLY | O_CREAT, S_IRWXU);
-		dup2(fd, 2); 
+		dup2(fd, fileno(stderr)); // Output warning data to warning.txt
+
+		dup2(transcoder_control_pipe[0], fileno(stdin)); // Control data from stdin
+
 		struct transcoder_data coder;
 		init_transcoder();
 		init_transcoder_data(transcoder_pipe[0], rtp_server_pipe[1], &coder);
@@ -49,6 +71,9 @@ int connection_kick(int *state, char stations[][100], int stations_count, char *
 	if(mp3_fetch_pid == 0) {
 
 		// MP3 fetcher's thread (Also UI)
+
+		dup2(mp3_fetcher_control_pipe[0], fileno(stdin)); // Control data from stdin
+
 		fetch_playlist(transcoder_pipe[1], state, stations[0], buf);
 		*state = STOP; // Stop other threads as well
 		exit(0);
@@ -56,6 +81,9 @@ int connection_kick(int *state, char stations[][100], int stations_count, char *
 	rtp_pid = fork();
 	if(rtp_pid == 0) {
 		// RTP server's thread
+
+		dup2(rtp_server_control_pipe[0], fileno(stdin)); // Control data from stdin
+
 		set_destinations(tempdest, tempport, &rtp_connection, 1);
 		init_rtp_connection(&rtp_connection, RTP_SEND_INTERVAL_SEC,
 				RTP_SEND_INTERVAL_USEC, RTP_SAMPLING_FREQ,
@@ -70,14 +98,15 @@ int connection_kick(int *state, char stations[][100], int stations_count, char *
 	conn->trans_pid = trans_pid;
 	conn->mp3_fetch_pid = mp3_fetch_pid;
 	conn->rtp_serv_pid = rtp_pid;
+	conn->mp3_fetcher_control = mp3_fetcher_control_pipe[1];
+	conn->transcoder_control = transcoder_control_pipe[1];
+	conn->rtp_server_control = rtp_server_control_pipe[1];
 
 exit_system_err:
 	if(err != 0)
 		perror("Error with syscalls: ");
 exit:
 	return err;
-
-
 }
 
 int sip_server_kick(char stations[][100], int station_count, int portno, int *state)
@@ -269,12 +298,12 @@ int sip_server_kick(char stations[][100], int station_count, int portno, int *st
 
 						result = strstr(result,"=");
 						result = strtok(result,"=");
-						DTMF_signal = result[0];
-						if(DTMF_signal < '0' || DTMF_signal > '9'){
+						DTMF_signal = atoi(result);
+						if(DTMF_signal < 0 || DTMF_signal > 9){
 							printf("Unsupported");	
 							DTMFflag = UNSUPPORT;
 						}			
-						printf("%c\n",DTMF_signal);
+						printf("%i\n",DTMF_signal);
 
 					}
 				}
@@ -336,8 +365,10 @@ if(conn != NULL && connection_kick(state, stations, station_count, inet_ntoa(cli
 			if(DTMFflag == UNSUPPORT){
 				strcpy(server_msg,UNSUPPORTINFO_Handle(Sip_cli, cli_addr, server_msg2));
 			}
-			else
+			else {
 				strcpy(server_msg,INFO_Handle(Sip_cli, cli_addr, server_msg2));
+				printf("signal: %d\n", DTMF_signal);
+			}
 			if (sendto(sockfd, server_msg,strlen(server_msg), 0, (struct sockaddr *) &cli_addr, clilen)==-1)
 				error("sendto");
 		}

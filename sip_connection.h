@@ -29,6 +29,9 @@ struct connection {
 	Sip_in sip_conn;
 	int port, is_connected;
 	pid_t trans_pid, mp3_fetch_pid, rtp_serv_pid;
+	int mp3_fetcher_control; // This pipes control data to mp3 fetcher
+	int transcoder_control; // This pipes control data to transcoder
+	int rtp_server_control; // This pipes control data to rtp server
 };
 
 struct node

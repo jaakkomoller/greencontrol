@@ -37,7 +37,7 @@ struct cl_options {
 
 unsigned long random32();
 int parse_opts(int argc, char **argv, struct cl_options *opt);
- 
+int flush_file(int file);
 
 #endif /* UTIL_H */
 

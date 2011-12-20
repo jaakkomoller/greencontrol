@@ -36,9 +36,7 @@ int init_transcoder() {
 	av_register_all();
 }
 
-int init_transcoder_data(int transcoder_inno, int transcoder_outno, struct transcoder_data *data) {
-
-	char infilename[100];
+int init_transcoder_data(int transcoder_inno, int transcoder_outno, int mp3_control, struct transcoder_data *data) {
 
 	data->inputFormatCtx = NULL;
 	data->AudioCodec = NULL;
@@ -47,10 +45,14 @@ int init_transcoder_data(int transcoder_inno, int transcoder_outno, struct trans
 	data->AudioCodecEN = NULL;
 	data->AudioCodecCtxEN = NULL;
 
-	data->transcoder_in = transcoder_inno;
 	data->transcoder_out = transcoder_outno;
+	data->transcoder_in = transcoder_inno;
+	data->mp3_control = mp3_control;
+}
 
-	data->initialized = 0;
+int init_context(struct transcoder_data *data) {
+
+	char infilename[100];
 
 	sprintf(infilename, "pipe:%d", data->transcoder_in);
 
@@ -145,6 +147,7 @@ void audio_transcode(struct transcoder_data *data, int *state)
 	int out_size, length, j, a, bytes_available, err;
 	uint8_t *outbuf;
 	uint8_t *inbuf;
+	char buf[100];
 
 	fd_set rfds;
 	int selectid;
@@ -185,9 +188,18 @@ void audio_transcode(struct transcoder_data *data, int *state)
 		}
 		
 		if (FD_ISSET(fileno(stdin), &rfds)) {
-			read(fileno(stdin), inbuf, 1);
-			if(inbuf[0] == 'e' || inbuf[0] == 'E')
+			read(fileno(stdin), inbuf, inbuf_size);
+			if(inbuf[0] == 'e' || inbuf[0] == 'E') // exit
 				break;
+			if(inbuf[0] == 'r' || inbuf[0] == 'R') { // re-init context
+				flush_file(data->transcoder_in);
+				free_context(data);
+
+				sprintf(buf, "d");
+				write(data->mp3_control, buf, 1); // signal to start fetching data again.
+
+				init_context(data);
+			}
 		}
 
 		if (FD_ISSET(data->transcoder_in, &rfds)) {
@@ -213,15 +225,20 @@ void audio_transcode(struct transcoder_data *data, int *state)
 		}
 	}
 
+	free_context(data);
 	free(outbuf);
 	free(inbuf);
 }
 
-void free_transcode_data(struct transcoder_data *data) {
-	avcodec_close(data->AudioCodecCtx);
-	av_free(data->AudioCodecCtx);
-	avcodec_close(data->AudioCodecCtxEN);
-	av_free(data->AudioCodecCtxEN);
+void free_context(struct transcoder_data *data) {
+	if(data->AudioCodecCtx) {
+		avcodec_close(data->AudioCodecCtx);
+		av_free(data->AudioCodecCtx);
+	}
+	if(data->AudioCodecCtxEN) {
+		avcodec_close(data->AudioCodecCtxEN);
+		av_free(data->AudioCodecCtxEN);
+	}
 }
 
 

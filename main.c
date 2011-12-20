@@ -58,7 +58,8 @@ int main(int argc, char *argv[]) {
 
 		struct transcoder_data coder;
 		init_transcoder();
-		init_transcoder_data(transcoder_pipe[0], rtp_server_pipe[1], mp3_fetcher_control_pipe[1], &coder);
+		init_transcoder_data(transcoder_pipe[0], rtp_server_pipe[1], mp3_fetcher_control_pipe[1],
+			rtp_server_control_pipe[1], &coder);
 		audio_transcode(&coder, &state);
 		close(fd);
 

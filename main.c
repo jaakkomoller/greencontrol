@@ -15,7 +15,6 @@ int main(int argc, char *argv[]) {
 	int mp3_fetcher_control_pipe[2]; // This pipes control data to mp3 fetcher
 	struct rtp_connection rtp_connection; // The RTP connection object
 	struct cl_options opt; // Command line options
-	int state = RUNNING; 
 
 	err = parse_opts(argc, argv, &opt);
 	if(err != 0) {
@@ -60,7 +59,7 @@ int main(int argc, char *argv[]) {
 		init_transcoder();
 		init_transcoder_data(transcoder_pipe[0], rtp_server_pipe[1], mp3_fetcher_control_pipe[1],
 			rtp_server_control_pipe[1], &coder);
-		audio_transcode(&coder, &state);
+		audio_transcode(&coder);
 		close(fd);
 
 		printf("Transcoder quitting\n");
@@ -78,7 +77,7 @@ int main(int argc, char *argv[]) {
 		
 		dup2(rtp_server_control_pipe[0], fileno(stdin)); // Control data from stdin
 
-		rtp_connection_kick(&rtp_connection, &state);
+		rtp_connection_kick(&rtp_connection);
 
 		free_rtp_connection(&rtp_connection);
 	
@@ -90,7 +89,7 @@ int main(int argc, char *argv[]) {
 	char stations[MAX_STATIONS][100];
 	int station_count = fetch_station_info(stations, MAX_STATIONS);
 
-	start_gui(transcoder_pipe[1], transcoder_control_pipe[1], mp3_fetcher_control_pipe[0], &state, stations, station_count);
+	start_gui(transcoder_pipe[1], transcoder_control_pipe[1], mp3_fetcher_control_pipe[0], stations, station_count);
 
 	fprintf(stderr, "MP3 fetcher quitting\n");
 	char *temp = "E\n";

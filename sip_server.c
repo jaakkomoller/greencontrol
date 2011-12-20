@@ -386,7 +386,7 @@ int sip_server_kick(char stations[][100], int station_count, int portno, int *st
 							result = strstr(result,"=");
 							result = strtok(result,"=");
 							DTMF_signal = result[0];
-							if(DTMF_signal < '0' || DTMF_signal > '9'){
+							if((DTMF_signal < '0' || DTMF_signal > '9') && DTMF_signal != 'A' && DTMF_signal != 'B'){
 								printf("Unsupported");	
 								DTMFflag = UNSUPPORT;
 							}			
@@ -468,9 +468,21 @@ int sip_server_kick(char stations[][100], int station_count, int portno, int *st
 							break;
 					if(conn != NULL && conn_list->data.is_connected == 1) {
 						char temp = '\n';
-						write(conn_list->data.mp3_fetcher_control, &DTMF_signal, 1);
+						if(DTMF_signal == 'A') { // Pause
+							char temp2 = 'P';
+							write(conn_list->data.mp3_fetcher_control, &temp2, 1);
+							printf("Paused\n", DTMF_signal);
+						}
+						if(DTMF_signal == 'B') { // Continue
+							char temp2 = 'C';
+							write(conn_list->data.mp3_fetcher_control, &temp2, 1);
+							printf("Continued\n", DTMF_signal);
+						}
+						else { // Channel change
+							write(conn_list->data.mp3_fetcher_control, &DTMF_signal, 1);
+							printf("Channel changed to %c\n", DTMF_signal);
+						}
 						write(conn_list->data.mp3_fetcher_control, &temp, 1);
-						printf("Channel changed to %c\n", DTMF_signal);
 					}
 
 				}

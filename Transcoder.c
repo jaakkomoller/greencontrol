@@ -147,7 +147,7 @@ static void encode(int in, int out, AVCodecContext *AudioCodecCtxEN, long int sa
 	free(outbufEN);
 }
 
-void audio_transcode(struct transcoder_data *data, int *state)
+void audio_transcode(struct transcoder_data *data)
 {
 	int out_size, length, j, a, bytes_available, err;
 	uint8_t *outbuf;

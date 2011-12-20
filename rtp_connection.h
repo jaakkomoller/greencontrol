@@ -37,7 +37,7 @@ int init_rtp_connection(struct rtp_connection *connection,
 int set_destinations(char addr[][MAX_IPV4_ADDR_LEN], char ports[][MAX_IPV4_ADDR_LEN],
 		struct rtp_connection *connection, int howmany);
 
-int rtp_connection_kick(struct rtp_connection *connection, int *state);
+int rtp_connection_kick(struct rtp_connection *connection);
 
 int free_rtp_connection(struct rtp_connection *connection);
 #endif /* RTP_CONNECTION_H */

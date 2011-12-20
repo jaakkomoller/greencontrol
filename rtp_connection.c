@@ -54,7 +54,7 @@ exit_free_bind_sk:
 	return err;
 }
 
-int rtp_connection_kick(struct rtp_connection *connection, int *state) {
+int rtp_connection_kick(struct rtp_connection *connection) {
 	
 	int n, err = 0, retval = 0, i = 0, bytes_available = 0;
 	struct hostent *hp;

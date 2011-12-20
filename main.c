@@ -9,7 +9,7 @@ int main(int argc, char *argv[]) {
 
 	char stations[MAX_STATIONS][100];
 	int station_count = fetch_station_info(stations, MAX_STATIONS);
-	int state = RUNNING, err = 0;
+	int err = 0;
 	struct cl_options opt;
 
 
@@ -18,11 +18,8 @@ int main(int argc, char *argv[]) {
 		goto exit_err;
 	}
 
-	
-	sip_server_kick(stations, station_count, 50000, &state);
 
-
-	state = STOP; // Stop other threads as well
+	sip_server_kick(stations, station_count, 50000);
 
 exit_system_err:
 	if(err != 0)

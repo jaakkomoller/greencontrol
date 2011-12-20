@@ -8,7 +8,7 @@
 #include "Transcoder.h"
  /*gcc -std=c99 -g -W -Wall -o ./Sip_server sip_server.c*/
 
-int connection_kick(int *state, char stations[][100], int stations_count, char *destination, int port, struct connection *conn) {
+int connection_kick(char stations[][100], int stations_count, char *destination, int port, struct connection *conn) {
 	int err = 0;
 	int rtp_server_pipe[2]; // This pipes data from transcoder to rtp server
 	int transcoder_pipe[2]; // This pipes data from mp3fetcher to transcoder
@@ -63,8 +63,7 @@ int connection_kick(int *state, char stations[][100], int stations_count, char *
 		dup2(mp3_fetcher_control_pipe[0], fileno(stdin)); // Control data from stdin
 
 //		fetch_playlist(transcoder_pipe[1], state, stations[0], buf);
-		start_gui(transcoder_pipe[1], transcoder_control_pipe[1], state, stations, stations_count);
-		*state = STOP; // Stop other threads as well
+		start_gui(transcoder_pipe[1], transcoder_control_pipe[1], stations, stations_count);
 
 		fprintf(stderr, "MP3 fetcher quitting\n");
 		char *temp = "E\n";
@@ -87,9 +86,8 @@ int connection_kick(int *state, char stations[][100], int stations_count, char *
 		init_transcoder();
 		init_transcoder_data(transcoder_pipe[0], rtp_server_pipe[1], mp3_fetcher_control_pipe[1],
 			rtp_server_control_pipe[1], &coder);
-		audio_transcode(&coder, state);
+		audio_transcode(&coder);
 		close(fd);
-		*state = STOP; // Stop other threads as well
 
 		printf("Transcoder quitting\n");
 		char *temp = "E\n";
@@ -109,10 +107,9 @@ int connection_kick(int *state, char stations[][100], int stations_count, char *
 				RTP_SEND_INTERVAL_USEC, RTP_SAMPLING_FREQ,
 				SAMPLE_SIZE, rtp_server_pipe[0]);
 
-		rtp_connection_kick(&rtp_connection, state);
+		rtp_connection_kick(&rtp_connection);
 
 		free_rtp_connection(&rtp_connection);
-		*state = STOP; // Stop other threads as well
 
 		printf("RTP server quitting\n");
 		sleep(1);
@@ -173,7 +170,7 @@ int kill_all_connections(struct node **conn_list) {
 	return err;
 }
 
-int sip_server_kick(char stations[][100], int station_count, int portno, int *state)
+int sip_server_kick(char stations[][100], int station_count, int portno)
 //int main(int argc, char *argv[])
 {
 	int sockfd; /*File descriptor for socket*/
@@ -444,7 +441,7 @@ int sip_server_kick(char stations[][100], int station_count, int portno, int *st
 						break;
 				if(conn == NULL)
 					printf("Connection not found\n");
-				if(conn != NULL && connection_kick(state, stations, station_count, inet_ntoa(cli_addr.sin_addr), conn->data.port, &conn->data) == 0) {
+				if(conn != NULL && connection_kick(stations, station_count, inet_ntoa(cli_addr.sin_addr), conn->data.port, &conn->data) == 0) {
 					char *temp = "1\n";
 					write(conn_list->data.mp3_fetcher_control, temp, 2); /* Start with channel 1 */
 					conn_list->data.is_connected = 1;

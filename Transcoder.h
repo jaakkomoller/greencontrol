@@ -36,7 +36,7 @@ struct transcoder_data {
 int init_transcoder();
 int init_transcoder_data(int transcoder_inno, int transcoder_outno, int mp3_control,
 	int rtp_control, struct transcoder_data *data);
-void audio_transcode(struct transcoder_data *data, int *state);
+void audio_transcode(struct transcoder_data *data);
 void free_context(struct transcoder_data *data);
 
 #endif

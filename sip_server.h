@@ -57,7 +57,7 @@ typedef struct {
 Sip_out *out_init(void);
 Sip_body *body_init(void);
 
-int sip_server_kick(char stations[][100], int station_count, int portno, int *state);
+int sip_server_kick(char stations[][100], int station_count, int portno);
 char* OPTIONS_Handle(Sip_in *client, struct sockaddr_in client_addr,char *msg);
 char* INVITE_Handle(Sip_in *client, Sip_body *body,struct sockaddr_in client_addr,char* msg);
 char* UNSUPPORT_Handle(Sip_in *client, struct sockaddr_in client_addr,char* msg);

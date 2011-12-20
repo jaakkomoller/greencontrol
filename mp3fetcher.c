@@ -191,13 +191,13 @@ loop:
 		// Channel number selected
 		if (isdigit(menu[0]) && int_selection > 0 && int_selection <= station_count) {
 			printf("\nChannel [%d] was chosen\n", int_selection);
-			selected = int_selection;
-			menu[0] = '\0';
+			selected = int_selection
+			menu[0] = '\0'
 			fetch_playlist(outfile, tc_control, state, stations[int_selection - 1], menu);
 			if(menu[0] == '\0') {
 				fprintf(stderr, "Channel is unreachable, please select another channel\n");
 				goto scan_again;
-			}
+			
 			goto loop;
 		}
 
@@ -561,4 +561,4 @@ fprintf(stderr, "sending data\n");
 	if ((x=close(sockfd))<0)
 		perror("error when closing the socket");
 
-}
+

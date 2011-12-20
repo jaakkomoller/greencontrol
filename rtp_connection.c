@@ -14,7 +14,7 @@
 #include "util.h"
 
 
-static int bind_udp(int *sock);
+static int bind_udp(int *sock, int family);
 static int free_udp(int sock);
 int parse_destination(char *addr, char *port, struct destination *dest);
 static int get_payload_size(struct rtp_connection *connection);
@@ -27,10 +27,6 @@ int init_rtp_connection(struct rtp_connection *connection,
 		unsigned int sampling_freq, unsigned int sample_size,
 		int data_input) {
 	int err = 0, i = 0;
-	
-	err = bind_udp(&connection->bind_sk);
-	if(err)
-		goto exit;
 	
 	connection->send_interval.tv_sec = send_interval_sec;
 	connection->send_interval.tv_usec = send_interval_usec;
@@ -64,6 +60,14 @@ int rtp_connection_kick(struct rtp_connection *connection) {
 	int readchars = 0;
 	struct timeval tv;
 
+	if(connection->howmany > 0) {
+		err = bind_udp(&connection->bind_sk, connection->destinations[0].addr_family);
+		if(err)
+			goto exit;
+	}
+	else
+		goto exit;
+	
 	packet = create_rtp_packet(get_payload_size(connection));
 	if(packet == NULL) {
 		err = RTP_PACKET_ALLOC_ERROR;
@@ -143,12 +147,12 @@ exit_no_packet:
 	return 0;
 }
 
-static int bind_udp(int *sock) {
+static int bind_udp(int *sock, int family) {
 	int err = 0;
 
 	/* TODO take socket args rom user */
 
-	*sock = socket(AF_INET, SOCK_DGRAM, 0);
+	*sock = socket(family, SOCK_DGRAM, 0);
 	if (*sock < 0) {
 		err = SOCK_CREATE_ERROR;
 		goto exit;
@@ -170,7 +174,7 @@ int parse_destination(char *addr, char *port, struct destination *dest) {
 	int err = 0;
 	struct hostent *hp;
 
-printf("parsing %s, %s\n", addr, port);
+printf("destination %s, %s\n", addr, port);
 
 	dest->addr_family = AF_INET;
 	dest->length = sizeof(struct sockaddr_in);

@@ -20,12 +20,138 @@
 #define MAXBUFFER 1024
 #define FRAMESIZE 417
 
+char genres[MAX_GENRES][50];
+char genre_request[150]="";
+
+/*
+ * Fetches different genres and generates menu items based on this info
+ */
+int select_genre()
+{
+	char page[50000]="";
+	int i,status;
+
+	for(i = 0; i < MAX_GENRES; i++)
+		sprintf(genres[i], "");
+
+	// Fetch an html page that contains genre listings
+
+	for (i = 0; i < 5; i++)
+	{
+		status = fetch_page("www.shoutcast.com", "80",REQUEST, page);
+
+		if (status==0)
+		{
+			break;
+		}
+		if (i==4)
+		{
+			printf("Cannot fetch the genre info...\n");
+			exit(1);
+		}
+
+		sleep(1);
+	}
+
+	// Parse different genres from the html page.
+
+	regex_t    preg;
+	char       *pattern = "</div> <a href=\"\\(.*\\)\">";
+	int        rc;
+	size_t     nmatch = 2;
+	regmatch_t pmatch[2];
+
+	if (0 != (rc = regcomp(&preg, pattern, REG_NEWLINE))) {
+		exit(EXIT_FAILURE);
+	}
+
+	int x;
+	char *ptr;
+	for(i = 0; i < MAX_GENRES; i++)
+	{
+		if (0 != (rc = regexec(&preg, page, nmatch, pmatch, 0))) {
+			exit (1);
+		}
+
+		sprintf(genres[i],"%.*s", pmatch[1].rm_eo - pmatch[1].rm_so, &page[pmatch[1].rm_so]);
+
+		// test if genre contains a space char
+		ptr=strrchr(genres[i], ' ');
+		if (ptr!=NULL)
+		{
+			char delim[] = " ";
+			char *result = NULL;
+			char new[40]="";
+
+			result = strtok(genres[i], delim);
+			sprintf(new,"%s",result);
+			strncat(new,"%20",3);
+			result = strtok(NULL, delim);
+			strcat(new,result);
+			strcpy(genres[i],new);
+		}
+
+		page[pmatch[1].rm_so-1]='0'; //reset one bit of the string so regexec does not match the same line again
+	}
+
+	regfree(&preg);
+
+	// Create a menu
+
+	char menu[100];
+	char selection = 0;
+	int int_selection = 0;
+	int selected = 0;
+	int k = 0;
+
+	printf("\n##############################################################################");
+	printf("\n                              RadioStreamer");
+	printf("\n##############################################################################");
+	for(k = 0; k < MAX_GENRES; k++)
+		printf("\n[%d] \"%s\"", k+1, genres[k]);
+	printf("\n[%d] Exit",k+1);
+	printf("\n##############################################################################");
+	printf("\nChoose a genre: ");
+
+	do {
+		scanf("%s", menu);
+		getchar();
+
+		selection = toupper(menu[0]);
+		int_selection = atoi(menu);
+
+		// Genre number selected
+		if (int_selection > 0 && int_selection <= MAX_GENRES) {
+			printf("\nGenre [%d] was chosen\n", int_selection);
+
+#undef REQUEST
+			sprintf(genre_request,"GET %s HTTP/1.0\r\nHOST:www.shoutcast.com\r\n\r\n",genres[int_selection-1]);
+#define REQUEST genre_request
+			//printf("Request: %s",REQUEST);
+			return int_selection;
+		}
+
+		if (int_selection == MAX_GENRES+1) {
+			exit(0);
+		}
+
+		else if (int_selection > MAX_GENRES || !isdigit(menu[0]))
+			printf("\nPlease select a genre between 1 and %d\n", MAX_GENRES);
+	} while(selection!='E');
+
+	return 0;
+
+}
+
 /*
  * Fetches radio station information and generates menu items based on this info
  */
 
 int fetch_station_info(char stations[][100], int max_stations)
 {
+	
+	select_genre();
+	
 	printf("Fetching information from shoutcast.com and generating menu items\n");
 
 	char page[50000] = "";
@@ -99,7 +225,7 @@ int fetch_station_info(char stations[][100], int max_stations)
 	for(j=0;1;j++)
 	{
 		if (0 != (rc = regexec(&preg, page, nmatch, pmatch, 0))) { //Get a station
-//			printf("Failed to match\n");
+			//			printf("Failed to match\n");
 			break;
 		}
 		else{
@@ -121,26 +247,26 @@ int fetch_station_info(char stations[][100], int max_stations)
 			type_parsed = strtok (type," \n");// mp3 or aac+
 			page[pmatch3[1].rm_so-1]='0'; //reset one bit of the string so regexec does not match the same line again.
 
-//			if (strncmp(parsed,"128",3)==0 && strncmp(type_parsed,"MP3",3)==0)
-//			if (strncmp(type_parsed,"MP3",3)==0)
-//			{
-				station_count++; //128 kbps mp3 stream
-				match=0;
-//			}
+			//			if (strncmp(parsed,"128",3)==0 && strncmp(type_parsed,"MP3",3)==0)
+			//			if (strncmp(type_parsed,"MP3",3)==0)
+			//			{
+			station_count++; //128 kbps mp3 stream
+			match=0;
+			//			}
 
 			if (station_count > 0 && station_count <= max_stations && match == 0) {
 				sprintf(stations[station_count - 1],"%.*s %s/%s", pmatch[1].rm_eo - pmatch[1].rm_so, &page[pmatch[1].rm_so], type_parsed, parsed);
-//				printf("added %s, bitrate: %s\n", stations[station_count-1], parsed);
+				//				printf("added %s, bitrate: %s\n", stations[station_count-1], parsed);
 			}
 			if (station_count == max_stations) {
 				printf("breaking, %d, %d\n", station_count, max_stations);
 				break;
 			}
 
-//			if (strncmp(type_parsed,"MP3",3)==0)
-//			{
-				page[pmatch[1].rm_so-1]='0'; //reset one bit of the string so regexec does not match the same line again
-//			}
+			//			if (strncmp(type_parsed,"MP3",3)==0)
+			//			{
+			page[pmatch[1].rm_so-1]='0'; //reset one bit of the string so regexec does not match the same line again
+			//			}
 
 			match=1;
 
@@ -175,7 +301,7 @@ int start_gui(int outfile, int tc_control, int control, char stations[][100], in
 		printf("\n                              RadioStreamer");
 		printf("\n##############################################################################");
 		for(i = 0; i < station_count; i++)
-		printf("\n[%d] \"%s\"", i+1, stations[i]);
+			printf("\n[%d] \"%s\"", i+1, stations[i]);
 		printf("\n##############################################################################");
 		printf("\n[N]ext, [P]ause, [C]ontinue, [E]xit");
 		printf("\n##############################################################################");
@@ -203,7 +329,7 @@ loop:
 
 		else if (int_selection > station_count)
 			printf("\nPlease select a channel between 1 and %d\n", station_count);
-		
+
 		switch(selection) {
 
 			case 'N':
@@ -211,7 +337,7 @@ loop:
 
 				if (selected == station_count +1)
 					selected = 1;
-				
+
 				sprintf(menu, "%d", selected);
 
 				break;

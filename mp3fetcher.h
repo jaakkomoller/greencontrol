@@ -2,6 +2,7 @@
 #define MP3FETCHER_H
 
 #define MAX_STATIONS 10
+#define MAX_GENRES 25
 
 int fetch_file(int, int, int, char *, char *, char *);
 int fetch_playlist(int, int, int, char *, char *);

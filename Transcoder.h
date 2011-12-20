@@ -30,12 +30,12 @@ struct transcoder_data {
 	AVCodec *AudioCodecEN;
 	AVCodecContext *AudioCodecCtxEN;
 
-	int transcoder_in, transcoder_out, initialized;
+	int transcoder_in, transcoder_out, mp3_control;
 };
 
 int init_transcoder();
-int init_transcoder_data(int transcoder_inno, int transcoder_outno, struct transcoder_data *data);
+int init_transcoder_data(int transcoder_inno, int transcoder_outno, int mp3_control, struct transcoder_data *data);
 void audio_transcode(struct transcoder_data *data, int *state);
-void free_transcode_data(struct transcoder_data *data);
+void free_context(struct transcoder_data *data);
 
 #endif

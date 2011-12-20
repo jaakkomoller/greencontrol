@@ -58,7 +58,7 @@ int fetch_station_info(char stations[][100], int max_stations)
 	//parse radio stations from html page
 
 	regex_t    preg;
-	char       *pattern = "on playimage\" name=\"\\(.*\\)\"></a>";
+	char       *pattern = "playimage\" name=\"\\(.*\\)\"></a>";
 	int        rc;
 	size_t     nmatch = 2;
 	regmatch_t pmatch[2];
@@ -121,15 +121,15 @@ int fetch_station_info(char stations[][100], int max_stations)
 			type_parsed = strtok (type," \n");// mp3 or aac+
 			page[pmatch3[1].rm_so-1]='0'; //reset one bit of the string so regexec does not match the same line again.
 
-			if (strncmp(parsed,"128",3)==0 && strncmp(type_parsed,"MP3",3)==0)
+//			if (strncmp(parsed,"128",3)==0 && strncmp(type_parsed,"MP3",3)==0)
 //			if (strncmp(type_parsed,"MP3",3)==0)
-			{
+//			{
 				station_count++; //128 kbps mp3 stream
 				match=0;
-			}
+//			}
 
 			if (station_count > 0 && station_count <= max_stations && match == 0) {
-				sprintf(stations[station_count - 1],"%.*s", pmatch[1].rm_eo - pmatch[1].rm_so, &page[pmatch[1].rm_so]);
+				sprintf(stations[station_count - 1],"%.*s %s/%s", pmatch[1].rm_eo - pmatch[1].rm_so, &page[pmatch[1].rm_so], type_parsed, parsed);
 //				printf("added %s, bitrate: %s\n", stations[station_count-1], parsed);
 			}
 			if (station_count == max_stations) {
@@ -137,10 +137,10 @@ int fetch_station_info(char stations[][100], int max_stations)
 				break;
 			}
 
-			if (strncmp(type_parsed,"MP3",3)==0)
-			{
+//			if (strncmp(type_parsed,"MP3",3)==0)
+//			{
 				page[pmatch[1].rm_so-1]='0'; //reset one bit of the string so regexec does not match the same line again
-			}
+//			}
 
 			match=1;
 
@@ -156,7 +156,7 @@ int fetch_station_info(char stations[][100], int max_stations)
 }
 
 
-int start_gui(int outfile, int *state, char stations[][100], int station_count) {
+int start_gui(int outfile, int tc_control, int control, int *state, char stations[][100], int station_count) {
 
 	//Generate a menu
 
@@ -192,7 +192,7 @@ loop:
 		if (isdigit(menu[0]) && int_selection > 0 && int_selection <= station_count) {
 			printf("\nChannel [%d] was chosen\n", int_selection);
 			selected = int_selection;
-			fetch_playlist(outfile, state, stations[int_selection - 1], menu);
+			fetch_playlist(outfile, tc_control, control, state, stations[int_selection - 1], menu);
 			goto loop;
 		}
 
@@ -228,7 +228,7 @@ loop:
 /*
  * Fetches and parses a playlist html page and tries to call fetch_file() function (possibly several times)
  */
-int fetch_playlist(int outfile, int *state, char* station, char *buf)
+int fetch_playlist(int outfile, int tc_control, int control, int *state, char* station, char *buf)
 {
 	char page[10000]="";
 	char *parsed="";
@@ -275,7 +275,7 @@ int fetch_playlist(int outfile, int *state, char* station, char *buf)
 
 
 		//fetch_file
-		int fetch = fetch_file(outfile, state, ip, port, buf);
+		int fetch = fetch_file(outfile, tc_control, control, state, ip, port, buf);
 
 		if (fetch==-1)
 		{
@@ -400,7 +400,7 @@ int fetch_page(char* URL, char* PORT,char* HTTP_GET,char* RECEIVED_PAGE)
  * Fetches an mp3 file stream
  */
 
-int fetch_file(int outfile, int *state, char* IP, char* PORT, char *buf)
+int fetch_file(int outfile, int tc_control, int control, int *state, char* IP, char* PORT, char *buf)
 {
 	//Try to connect to a certain IP:PORT
 
@@ -461,6 +461,14 @@ int fetch_file(int outfile, int *state, char* IP, char* PORT, char *buf)
 	if (-1 == (flags = fcntl(sockfd, F_GETFL, 0)))
 		flags = 0;
 	fcntl(sockfd, F_SETFL, flags | O_NONBLOCK);
+
+	sprintf(buffer, "R");
+	write(tc_control, buffer, 1);
+	if ((read_bytes = read(control, buffer, 1))<0)
+	{
+		perror("read");
+		return -1;
+	}
 
 	//Wait for some input
 	for(;;)

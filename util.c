@@ -3,6 +3,10 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include <sys/file.h> /* O_CREAT jne*/
+#include <sys/stat.h>
+#include <sys/wait.h>
+#include <sys/ioctl.h>
 #include "util.h"
 
 
@@ -82,4 +86,28 @@ int parse_opts(int argc, char **argv, struct cl_options *opt) {
 	}
 exit:
 	return error;
+}
+
+int flush_file(int file) {
+	int bytes_available, err = 0;
+	char buf[100];
+	
+	// Check amount of data in pipe
+	err = ioctl(file, FIONREAD, &bytes_available);
+	if(err != 0) {
+		perror("Error while checking size of pipe: ");
+		goto exit;
+	}
+
+	while(bytes_available != 0) {
+		read(file, buf, (100 < bytes_available) ? 100 : bytes_available);
+		// Check amount of data in pipe
+		err = ioctl(file, FIONREAD, &bytes_available);
+		if(err != 0) {
+			perror("Error while checking size of pipe: ");
+			goto exit;
+		}
+	}
+	exit:
+	return err;
 }

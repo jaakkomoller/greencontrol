@@ -210,6 +210,7 @@ void audio_transcode(struct transcoder_data *data, int *state)
 				continue;
 			}
 			else if(inbuf[0] == 'f' || inbuf[0] == 'F') { // Flush
+printf("flushing\n");
 				flush_file(data->transcoder_in);
 				sprintf(buf, "f");
 				write(data->rtp_control, buf, 1); // Flush rtp streamer.

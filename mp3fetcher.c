@@ -180,7 +180,7 @@ int start_gui(int outfile, int tc_control, int *state, char stations[][100], int
 		printf("\n[N]ext, [P]ause, [C]ontinue, [E]xit");
 		printf("\n##############################################################################");
 		printf("\nChoose a channel: ");
-
+scan_again:
 		scanf("%s", menu);
 		getchar();
 
@@ -192,7 +192,12 @@ loop:
 		if (isdigit(menu[0]) && int_selection > 0 && int_selection <= station_count) {
 			printf("\nChannel [%d] was chosen\n", int_selection);
 			selected = int_selection;
+			menu[0] = '\0';
 			fetch_playlist(outfile, tc_control, state, stations[int_selection - 1], menu);
+			if(menu[0] == '\0') {
+				fprintf(stderr, "Channel is unreachable, please select another channel\n");
+				goto scan_again;
+			}
 			goto loop;
 		}
 
@@ -405,8 +410,10 @@ int fetch_file(int outfile, int tc_control, int *state, char* IP, char* PORT, ch
 	//Try to connect to a certain IP:PORT
 
 	struct sockaddr_in servaddr;
-	int sockfd, n,m,x,numbytes;
-
+	int sockfd, n,m,x,numbytes,ret = 0;
+	int flags = 0;
+	fd_set readsetfds;
+	struct timeval tv;
 
 	if ( (sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0) /* create a socket, SOCK_STREAM -> TCP */
 	{
@@ -424,9 +431,35 @@ int fetch_file(int outfile, int tc_control, int *state, char* IP, char* PORT, ch
 		return -1;
 	}
 
-	if (connect(sockfd, (SA *) &servaddr, sizeof(servaddr)) < 0) /* connect to server */
+	// Set socket to non-blocking.
+	if (-1 == (flags = fcntl(sockfd, F_GETFL, 0)))
+		flags = 0;
+	fcntl(sockfd, F_SETFL, flags | O_NONBLOCK);
+
+	connect(sockfd, (SA *) &servaddr, sizeof(servaddr)); /* connect to server */
+
+	FD_ZERO(&readsetfds);
+	FD_SET(sockfd, &readsetfds);
+	tv.tv_sec = 3;             /* timeout in secs */
+	tv.tv_usec = 0;
+	ret = select(sockfd + 1, NULL, &readsetfds, NULL, &tv); 
+	if (ret == 0)
 	{
-		perror("connect error");
+		fprintf(stderr, "connect timed out\n");	
+		return -1;
+	}
+	else if (ret > 0) {
+		int so_error;
+		socklen_t len = sizeof so_error;
+
+		getsockopt(sockfd, SOL_SOCKET, SO_ERROR, &so_error, &len);
+
+		if (so_error != 0) {
+			return -1;
+		}
+	}
+	else {
+		fprintf(stderr, "error in select\n");	
 		return -1;
 	}
 
@@ -439,9 +472,6 @@ int fetch_file(int outfile, int tc_control, int *state, char* IP, char* PORT, ch
 		perror("http GET error");
 		return -1;
 	}
-
-	fd_set readsetfds;
-	fd_set readsetfds2; /* temp*/
 
 	char buffer[FRAMESIZE+1];//[1024];
 	char new_buffer[FRAMESIZE+1];
@@ -456,14 +486,10 @@ int fetch_file(int outfile, int tc_control, int *state, char* IP, char* PORT, ch
 	int ispaused = 0;
 
 	int count=0;
-	int flags = 0;
-
-	if (-1 == (flags = fcntl(sockfd, F_GETFL, 0)))
-		flags = 0;
-	fcntl(sockfd, F_SETFL, flags | O_NONBLOCK);
 
 	sprintf(buffer, "R");
 	write(tc_control, buffer, 1);
+fprintf(stderr, "waiting transcoder\n");	
 	while(buffer[0] != '\01') { // synchronization with transcoder. transcoder has to flush before receiving new stream.
 		if ((read_bytes = read(fileno(stdin), buffer, 1))<0)
 		{

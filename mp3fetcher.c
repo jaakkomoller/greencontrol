@@ -156,7 +156,7 @@ int fetch_station_info(char stations[][100], int max_stations)
 }
 
 
-int start_gui(int outfile, int tc_control, int control, int *state, char stations[][100], int station_count) {
+int start_gui(int outfile, int tc_control, int *state, char stations[][100], int station_count) {
 
 	//Generate a menu
 
@@ -192,7 +192,7 @@ loop:
 		if (isdigit(menu[0]) && int_selection > 0 && int_selection <= station_count) {
 			printf("\nChannel [%d] was chosen\n", int_selection);
 			selected = int_selection;
-			fetch_playlist(outfile, tc_control, control, state, stations[int_selection - 1], menu);
+			fetch_playlist(outfile, tc_control, state, stations[int_selection - 1], menu);
 			goto loop;
 		}
 
@@ -228,7 +228,7 @@ loop:
 /*
  * Fetches and parses a playlist html page and tries to call fetch_file() function (possibly several times)
  */
-int fetch_playlist(int outfile, int tc_control, int control, int *state, char* station, char *buf)
+int fetch_playlist(int outfile, int tc_control, int *state, char* station, char *buf)
 {
 	char page[10000]="";
 	char *parsed="";
@@ -275,7 +275,7 @@ int fetch_playlist(int outfile, int tc_control, int control, int *state, char* s
 
 
 		//fetch_file
-		int fetch = fetch_file(outfile, tc_control, control, state, ip, port, buf);
+		int fetch = fetch_file(outfile, tc_control, state, ip, port, buf);
 
 		if (fetch==-1)
 		{
@@ -400,7 +400,7 @@ int fetch_page(char* URL, char* PORT,char* HTTP_GET,char* RECEIVED_PAGE)
  * Fetches an mp3 file stream
  */
 
-int fetch_file(int outfile, int tc_control, int control, int *state, char* IP, char* PORT, char *buf)
+int fetch_file(int outfile, int tc_control, int *state, char* IP, char* PORT, char *buf)
 {
 	//Try to connect to a certain IP:PORT
 
@@ -464,7 +464,7 @@ int fetch_file(int outfile, int tc_control, int control, int *state, char* IP, c
 
 	sprintf(buffer, "R");
 	write(tc_control, buffer, 1);
-	if ((read_bytes = read(control, buffer, 1))<0)
+	if ((read_bytes = read(fileno(stdin), buffer, 1))<0)
 	{
 		perror("read");
 		return -1;

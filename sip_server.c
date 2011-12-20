@@ -63,7 +63,7 @@ int connection_kick(int *state, char stations[][100], int stations_count, char *
 		dup2(mp3_fetcher_control_pipe[0], fileno(stdin)); // Control data from stdin
 
 //		fetch_playlist(transcoder_pipe[1], state, stations[0], buf);
-		start_gui(transcoder_pipe[1], state, stations, stations_count);
+		start_gui(transcoder_pipe[1], transcoder_control_pipe[1], state, stations, stations_count);
 		*state = STOP; // Stop other threads as well
 
 		fprintf(stderr, "MP3 fetcher quitting\n");
@@ -85,9 +85,8 @@ int connection_kick(int *state, char stations[][100], int stations_count, char *
 
 		struct transcoder_data coder;
 		init_transcoder();
-		init_transcoder_data(transcoder_pipe[0], rtp_server_pipe[1], &coder);
+		init_transcoder_data(transcoder_pipe[0], rtp_server_pipe[1], mp3_fetcher_control_pipe[1], &coder);
 		audio_transcode(&coder, state);
-		free_transcode_data(&coder);
 		close(fd);
 		*state = STOP; // Stop other threads as well
 
@@ -485,8 +484,6 @@ int sip_server_kick(char stations[][100], int station_count, int portno, int *st
 					error("sendto");
 				}
 				kill_connection_id(Sip_cli->Call_ID, &conn_list);
-				if(conn_list == NULL)
-					printf("conn_list == NULL\n");
 			}
 
 			if(!conn_stored)

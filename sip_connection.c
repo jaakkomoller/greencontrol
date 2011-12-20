@@ -36,7 +36,6 @@ void display(struct node *q)
 {
 	if(q==NULL)
 	{
-		printf("\n\nEmpty Link List.Can't Display The Data");
 		goto last;
 	}
 	while(q!=NULL)
@@ -53,7 +52,6 @@ int count(struct node *q)
 	int c=0;
 	if(q==NULL)
 	{
-		printf("Empty Link List.\n");
 		goto last;
 	}
 	while(q!=NULL)
@@ -70,7 +68,6 @@ void in_begin(struct node **q, struct connection *conn)
 	struct node *temp;
 	if(*q==NULL)
 	{
-		printf("Link List Is Empty.Can't Insert.");
 		goto last;
 	}
 	else
@@ -90,7 +87,6 @@ void in_middle(struct node **q, int loc, struct connection *conn)
 	temp=*q;
 	if(*q==NULL)
 	{
-		printf("\n\nLink List Is Empty.Can't Insert.");
 		goto last;
 	}
 	else
@@ -109,11 +105,11 @@ void in_middle(struct node **q, int loc, struct connection *conn)
 		}
 	if(flag==0)
 	{
-		printf("\n\nNode Specified Doesn't Exist.Cant Enter The Data");
+		//printf("\n\nNode Specified Doesn't Exist.Cant Enter The Data");
 	}
 	else
 	{
-		printf("Data Inserted");
+		//printf("Data Inserted");
 	}
 last:
 	return;
@@ -123,7 +119,6 @@ void del(struct node**q, char *call_id)
 {    
 	if(*q==NULL)
 	{
-		printf("\n\nEmpty Linked List.Cant Delete The Data.");
 		goto last;
 	}
 	else
@@ -151,10 +146,10 @@ void del(struct node**q, char *call_id)
 				temp=temp->link;
 			}
 		}
-		if(flag==0)
-			printf("Data Not Found...\n");
-		else
-			printf("Data Deleted...Tap a key to continue\n");
+		//if(flag==0)
+			//printf("Data Not Found...\n");
+		//else
+			//printf("Data Deleted...Tap a key to continue\n");
 	}
 last:
 	return;

@@ -102,6 +102,10 @@ int rtp_connection_kick(struct rtp_connection *connection, int *state) {
 			if(buffer[0] == 'e' || buffer[0] == 'E') {
 				goto exit;
 			}
+			else if(buffer[0] == 'f' || buffer[0] == 'F') { // Flush
+				flush_file(connection->data_input);
+				continue;
+			}
 		}
 		
 		if (bytes_available >= packet->payload_size) { // audio stream

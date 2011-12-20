@@ -36,7 +36,7 @@ int init_transcoder() {
 	av_register_all();
 }
 
-int init_transcoder_data(int transcoder_inno, int transcoder_outno, int mp3_control, struct transcoder_data *data) {
+int init_transcoder_data(int transcoder_inno, int transcoder_outno, int mp3_control, int rtp_control, struct transcoder_data *data) {
 
 	data->inputFormatCtx = NULL;
 	data->AudioCodec = NULL;
@@ -48,6 +48,9 @@ int init_transcoder_data(int transcoder_inno, int transcoder_outno, int mp3_cont
 	data->transcoder_out = transcoder_outno;
 	data->transcoder_in = transcoder_inno;
 	data->mp3_control = mp3_control;
+	data->rtp_control = rtp_control;
+
+	data->initialized = 0;
 }
 
 int init_context(struct transcoder_data *data) {
@@ -75,6 +78,7 @@ int init_context(struct transcoder_data *data) {
 		fprintf(stderr, "Decoding codec not found\n");
 		exit(1);
 	}
+	printf("Audiocodec: %d\n", data->AudioCodecCtx->codec_id);
 
 	data->AudioCodecCtx = avcodec_alloc_context();
 
@@ -101,6 +105,7 @@ int init_context(struct transcoder_data *data) {
 		exit(1);
 	}
 
+	data->initialized = 1;
 }
 
 static void encode(int in, int out, AVCodecContext *AudioCodecCtxEN, long int sample_rate) {
@@ -195,14 +200,28 @@ void audio_transcode(struct transcoder_data *data, int *state)
 				flush_file(data->transcoder_in);
 				free_context(data);
 
-				sprintf(buf, "d");
-				write(data->mp3_control, buf, 1); // signal to start fetching data again.
+				sprintf(buf, "f");
+				write(data->rtp_control, buf, 1); // Flush rtp streamer.
 
-				init_context(data);
+				sprintf(buf, "\01");
+				write(data->mp3_control, buf, 1); // signal to start fetching data again.
+				
+				data->initialized = 0;
+				continue;
+			}
+			else if(inbuf[0] == 'f' || inbuf[0] == 'F') { // Flush
+				flush_file(data->transcoder_in);
+				sprintf(buf, "f");
+				write(data->rtp_control, buf, 1); // Flush rtp streamer.
+				continue;
 			}
 		}
 
 		if (FD_ISSET(data->transcoder_in, &rfds)) {
+			if(!data->initialized) {
+printf("data available\n");	
+				init_context(data);
+			}
 
 			if(av_read_frame(data->inputFormatCtx, &Audiopkt) < 0)
 				break;

@@ -85,7 +85,8 @@ int connection_kick(int *state, char stations[][100], int stations_count, char *
 
 		struct transcoder_data coder;
 		init_transcoder();
-		init_transcoder_data(transcoder_pipe[0], rtp_server_pipe[1], mp3_fetcher_control_pipe[1], &coder);
+		init_transcoder_data(transcoder_pipe[0], rtp_server_pipe[1], mp3_fetcher_control_pipe[1],
+			rtp_server_control_pipe[1], &coder);
 		audio_transcode(&coder, state);
 		close(fd);
 		*state = STOP; // Stop other threads as well
@@ -473,7 +474,7 @@ int sip_server_kick(char stations[][100], int station_count, int portno, int *st
 							write(conn_list->data.mp3_fetcher_control, &temp2, 1);
 							printf("Paused\n", DTMF_signal);
 						}
-						if(DTMF_signal == 'B') { // Continue
+						else if(DTMF_signal == 'B') { // Continue
 							char temp2 = 'C';
 							write(conn_list->data.mp3_fetcher_control, &temp2, 1);
 							printf("Continued\n", DTMF_signal);

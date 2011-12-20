@@ -464,12 +464,15 @@ int fetch_file(int outfile, int tc_control, int *state, char* IP, char* PORT, ch
 
 	sprintf(buffer, "R");
 	write(tc_control, buffer, 1);
-	if ((read_bytes = read(fileno(stdin), buffer, 1))<0)
-	{
-		perror("read");
-		return -1;
+	while(buffer[0] != '\01') { // synchronization with transcoder. transcoder has to flush before receiving new stream.
+		if ((read_bytes = read(fileno(stdin), buffer, 1))<0)
+		{
+			perror("read");
+			return -1;
+		}
 	}
 
+fprintf(stderr, "sending data\n");	
 	//Wait for some input
 	for(;;)
 	{
@@ -497,6 +500,8 @@ int fetch_file(int outfile, int tc_control, int *state, char* IP, char* PORT, ch
 				{
 					printf("Paused\n");
 					ispaused=1;
+					sprintf(buffer, "F"); // Flush transcoder and rtp server.
+					write(tc_control, buf, 1);
 					continue;
 				}
 
@@ -518,8 +523,10 @@ int fetch_file(int outfile, int tc_control, int *state, char* IP, char* PORT, ch
 					return -1;
 				}
 
-				if (!ispaused)
+				if (!ispaused) {
 					write(outfile,buffer,read_bytes);
+					
+				}
 
 			}
 		}

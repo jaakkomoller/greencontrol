@@ -13,6 +13,7 @@ void append(struct node **q, struct connection *conn)
 	temp = *q;
 	if(*q==NULL)
 	{
+	printf("appending to start\n");
 		temp = (struct node *) malloc( sizeof( struct node));
 		memcpy(&temp->data, conn, sizeof(struct connection));
 		temp->link = NULL;
@@ -20,9 +21,11 @@ void append(struct node **q, struct connection *conn)
 	}
 	else
 	{
+	printf("appending to end\n");
 		temp = *q;
 		while(temp->link !=NULL)
 		{
+	printf("searching\n");
 			temp = temp->link;
 		}
 		r = (struct node *) malloc( sizeof(struct node));

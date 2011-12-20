@@ -129,8 +129,8 @@ exit:
 struct connection *get_connection(char *call_id, struct node *conn_list) {
 	struct node *conn = NULL;
 	struct connection *ret = NULL;
-	for (conn = conn_list; conn != NULL; conn = conn_list->link)
-		if(strcmp(conn_list->data.sip_conn->Call_ID, call_id) == 0) {
+	for (conn = conn_list; conn != NULL; conn = conn->link)
+		if(strcmp(conn->data.sip_conn->Call_ID, call_id) == 0) {
 			ret = &conn->data;
 			break;
 		}
@@ -388,7 +388,6 @@ int sip_server_kick(char stations[][100], int station_count, int portno)
 								printf("Unsupported");	
 								DTMFflag = UNSUPPORT;
 							}			
-							printf("%c\n",DTMF_signal);
 
 						}
 					}
@@ -418,6 +417,9 @@ int sip_server_kick(char stations[][100], int station_count, int portno)
 					conn.port = atoi(temp);
 					conn.is_connected = 0;
 					append(&conn_list, &conn);
+//				struct node *nod = NULL;
+//					for (nod = conn_list; nod != NULL; nod = conn_list->link)
+//						display(nod);
 					conn_stored = 1;
 				}/*If PCMU is not supported by the client*/
 				else if(RTPflag != SUPPORT){
@@ -434,17 +436,16 @@ int sip_server_kick(char stations[][100], int station_count, int portno)
 				/*THIS IS THE CASE WHEN ACK FROM 200 OK MSG IS RECEIVED, This is where we start the streaming*/
 				printf("ACK REC");
 				struct node *conn = NULL;
-				for (conn = conn_list; conn != NULL; conn = conn_list->link)
-					display(conn);
-				for (conn = conn_list; conn != NULL; conn = conn_list->link)
-					if(strcmp(conn_list->data.sip_conn->Call_ID, Sip_cli->Call_ID) == 0)
+				display(conn_list);
+				for (conn = conn_list; conn != NULL; conn = conn->link)
+					if(strcmp(conn->data.sip_conn->Call_ID, Sip_cli->Call_ID) == 0)
 						break;
 				if(conn == NULL)
 					printf("Connection not found\n");
 				if(conn != NULL && connection_kick(stations, station_count, inet_ntoa(cli_addr.sin_addr), conn->data.port, &conn->data) == 0) {
 					char *temp = "1\n";
-					write(conn_list->data.mp3_fetcher_control, temp, 2); /* Start with channel 1 */
-					conn_list->data.is_connected = 1;
+					write(conn->data.mp3_fetcher_control, temp, 2); /* Start with channel 1 */
+					conn->data.is_connected = 1;
 					printf("Kicked\n");
 				}
 			}
@@ -461,26 +462,26 @@ int sip_server_kick(char stations[][100], int station_count, int portno)
 				else {
 					struct node *conn = NULL;
 					strcpy(server_msg,INFO_Handle(Sip_cli, cli_addr, server_msg2));
-					for (conn = conn_list; conn != NULL; conn = conn_list->link)
-						if(strcmp(conn_list->data.sip_conn->Call_ID, Sip_cli->Call_ID) == 0)
+					for (conn = conn_list; conn != NULL; conn = conn->link)
+						if(strcmp(conn->data.sip_conn->Call_ID, Sip_cli->Call_ID) == 0)
 							break;
-					if(conn != NULL && conn_list->data.is_connected == 1) {
+					if(conn != NULL && conn->data.is_connected == 1) {
 						char temp = '\n';
 						if(DTMF_signal == 'A') { // Pause
 							char temp2 = 'P';
-							write(conn_list->data.mp3_fetcher_control, &temp2, 1);
+							write(conn->data.mp3_fetcher_control, &temp2, 1);
 							printf("Paused\n", DTMF_signal);
 						}
 						else if(DTMF_signal == 'B') { // Continue
 							char temp2 = 'C';
-							write(conn_list->data.mp3_fetcher_control, &temp2, 1);
+							write(conn->data.mp3_fetcher_control, &temp2, 1);
 							printf("Continued\n", DTMF_signal);
 						}
 						else { // Channel change
-							write(conn_list->data.mp3_fetcher_control, &DTMF_signal, 1);
+							write(conn->data.mp3_fetcher_control, &DTMF_signal, 1);
 							printf("Channel changed to %c\n", DTMF_signal);
 						}
-						write(conn_list->data.mp3_fetcher_control, &temp, 1);
+						write(conn->data.mp3_fetcher_control, &temp, 1);
 					}
 
 				}

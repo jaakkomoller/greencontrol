@@ -27,6 +27,12 @@ int init_rtp_connection(struct rtp_connection *connection,
 		unsigned int sampling_freq, unsigned int sample_size,
 		int data_input) {
 	int err = 0, i = 0;
+	if(connection->howmany > 0) {
+		err = bind_udp(&connection->bind_sk, connection->destinations->addr_family);
+	} if(err) {
+		printf("error in bind\n");
+		goto exit;
+	}
 	
 	connection->send_interval.tv_sec = send_interval_sec;
 	connection->send_interval.tv_usec = send_interval_usec;
@@ -60,14 +66,6 @@ int rtp_connection_kick(struct rtp_connection *connection) {
 	int readchars = 0;
 	struct timeval tv;
 
-	if(connection->howmany > 0) {
-		err = bind_udp(&connection->bind_sk, connection->destinations[0].addr_family);
-		if(err)
-			goto exit;
-	}
-	else
-		goto exit;
-	
 	packet = create_rtp_packet(get_payload_size(connection));
 	if(packet == NULL) {
 		err = RTP_PACKET_ALLOC_ERROR;
@@ -171,26 +169,42 @@ int free_rtp_connection(struct rtp_connection *connection) {
 }
 
 int parse_destination(char *addr, char *port, struct destination *dest) {
-	int err = 0;
-	struct hostent *hp;
+	struct addrinfo hints, *i, *retaddr;
+	int err = 0, status = 0;
 
-printf("destination %s, %s\n", addr, port);
+	//define hints
+	memset(&hints, 0, sizeof hints);
+	hints.ai_family = AF_UNSPEC; // IPv6 or IPv4 protocol independent
+	hints.ai_socktype = SOCK_DGRAM; //UDP
 
-	dest->addr_family = AF_INET;
-	dest->length = sizeof(struct sockaddr_in);
-
-	dest->addr.addr_in.sin_family = AF_INET;
-	hp = gethostbyname(addr);
-	if (hp == 0) {
-		err = UNKNOWN_HOST_ERROR;
+	//hostname resolving
+	if (status=getaddrinfo(addr, port, &hints, &retaddr) != 0)
+	{
+		//printf("an error occured with getaddrinfo\n");
+		fprintf(stderr, "getaddrinfo error: %s\n", gai_strerror(status));
+		err = UNKNOWN_HOST_ERROR; // Did not get results.
 		goto exit;
 	}
 
-	bcopy((char *)hp->h_addr, (char *)&dest->addr.addr_in.sin_addr,
-		hp->h_length);
-	dest->addr.addr_in.sin_port = htons(atoi(port));
+	//loop through the resuls and create a socket and connect()
+	for(i = retaddr; i != NULL; i = i->ai_next)
+	{
+		dest->addr_family = i->ai_family;
+		dest->length = i->ai_addrlen;
+		
+		bcopy((char *)i->ai_addr, (char *)&dest->addr.addr_in,
+			i->ai_addrlen);
+		dest->addr.addr_in.sin_family = i->ai_family;
+		dest->addr.addr_in.sin_port = htons(atoi(port));
+		
+		goto exit;
+	}
 
-exit:	
+	err = UNKNOWN_HOST_ERROR; // Did not get results.
+
+exit:
+	//freeing of memory
+	freeaddrinfo(retaddr); // Release the storage allocated by getaddrinfo() call
 	return err;
 }
 

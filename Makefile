@@ -1,7 +1,7 @@
 CC=gcc
 CFLAGS=-g
 LDFLAGS=-lavutil -lavformat -lavcodec -lgcc
-SOURCES=main.c rtp_connection.c rtp_packet.c util.c mp3fetcher.c Transcoder.c sip_server.c sip_connection.c
+SOURCES=main.c rtp_connection.c rtp_packet.c util.c mp3fetcher.c Transcoder.c sip_server.c sip_connection.c timing.c
 OBJECTS=$(SOURCES:.c=.o)
 EXECUTABLE=RadioStreamer
 

@@ -13,7 +13,7 @@
 #include "rtp_packet.h"
 #include "util.h"
 
-
+int printedRTP = 0;
 static int bind_udp(int *sock, int family);
 static int free_udp(int sock);
 int parse_destination(char *addr, char *port, struct destination *dest, struct rtp_connection *conn);
@@ -118,6 +118,7 @@ int rtp_connection_kick(struct rtp_connection *connection) {
 			}
 			else if(buffer[0] == 'f' || buffer[0] == 'F') { // Flush
 				flush_file(connection->data_input);
+				printedRTP = 0;
 				continue;
 			}
 		}
@@ -133,6 +134,14 @@ int rtp_connection_kick(struct rtp_connection *connection) {
 					(const struct sockaddr *)
 					&connection->destinations[i].addr,
 					connection->destinations[i].length);
+					//////////////////////////////////////////////////////////////////////////////////////////////
+					if (printedRTP == 0) {
+						printf("printf: %d",printedRTP);
+						print_time("RTP streamer");
+						printedRTP++;
+					}
+					//////////////////////////////////////////////////////////////////////////////////////////////
+				
 				if (n < 0) {
 					err = UDP_SEND_ERROR;
 					goto exit;

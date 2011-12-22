@@ -19,6 +19,7 @@
 #define MAXLINE 128
 #define MAXBUFFER 1024
 #define FRAMESIZE 417
+int printed = 0;
 
 static char id[15] = "";
 
@@ -182,6 +183,13 @@ loop:
 		// Channel number selected
 		if (isdigit(menu[0]) && int_selection > 0 && int_selection <= station_count) {
 			printf("\nChannel [%d] was chosen\n", int_selection);
+			//////////////////////////////////////////////////////////////////////////////////////////////
+			printed = 0;
+			if (printed == 0) {
+				printf("printf: %d",printed);
+				print_time("mp3fetcher channel selected");
+			}
+			//////////////////////////////////////////////////////////////////////////////////////////////
 			selected = int_selection;
 			menu[0] = '\0';
 			fetch_playlist(outfile, tc_control, stations[int_selection - 1], menu);

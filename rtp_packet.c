@@ -6,15 +6,6 @@
 
 #define RTP_HEADER_SIZE 12
 
-/*
- * Allocates a variable size packet
- * 
- * @arg struct rtp_packet **packet: double pointer to point into allocated  
- * 		packet
- * @arg size_t payload_length: length of the payload in bytes
- * @ret: -1 if allocation fails, payload_length otherwise
- */
-
 struct rtp_packet *create_rtp_packet(size_t payload_size) {
 	struct rtp_packet *ret = NULL;
 

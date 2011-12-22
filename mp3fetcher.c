@@ -20,8 +20,9 @@
 #define MAXBUFFER 1024
 #define FRAMESIZE 417
 
-char genres[MAX_GENRES][50];
-char genre_request[150]="";
+static char genres[MAX_GENRES][50];
+static char genre_request[150]="";
+static char id[15]="";
 
 /*
  * Fetches different genres and generates menu items based on this info
@@ -149,13 +150,19 @@ int select_genre()
 
 int fetch_station_info(char stations[][100], int max_stations)
 {
+	char page[50000] = "";
+	int status, i;
+	char bitrate[50]="";
+	char * parsed;
+	char type[50]="";
+	char * type_parsed;
+
+	int j,station_count=0, match=1;
+
 	
 	select_genre();
 	
 	printf("Fetching information from shoutcast.com and generating menu items\n");
-
-	char page[50000] = "";
-	int status, i;
 
 	for(i = 0; i < max_stations; i++)
 		sprintf(stations[i], "");
@@ -177,9 +184,6 @@ int fetch_station_info(char stations[][100], int max_stations)
 
 		sleep(1);
 	}
-
-	//printf("%s",page);
-
 
 	//parse radio stations from html page
 
@@ -215,13 +219,6 @@ int fetch_station_info(char stations[][100], int max_stations)
 		exit(EXIT_FAILURE);
 	}
 
-	char bitrate[50]="";
-	char * parsed;
-	char type[50]="";
-	char * type_parsed;
-
-	int j,station_count=0, match=1;
-
 	for(j=0;1;j++)
 	{
 		if (0 != (rc = regexec(&preg, page, nmatch, pmatch, 0))) { //Get a station
@@ -247,12 +244,8 @@ int fetch_station_info(char stations[][100], int max_stations)
 			type_parsed = strtok (type," \n");// mp3 or aac+
 			page[pmatch3[1].rm_so-1]='0'; //reset one bit of the string so regexec does not match the same line again.
 
-			//			if (strncmp(parsed,"128",3)==0 && strncmp(type_parsed,"MP3",3)==0)
-			//			if (strncmp(type_parsed,"MP3",3)==0)
-			//			{
 			station_count++; //128 kbps mp3 stream
 			match=0;
-			//			}
 
 			if (station_count > 0 && station_count <= max_stations && match == 0) {
 				sprintf(stations[station_count - 1],"%.*s %s/%s", pmatch[1].rm_eo - pmatch[1].rm_so, &page[pmatch[1].rm_so], type_parsed, parsed);
@@ -263,10 +256,7 @@ int fetch_station_info(char stations[][100], int max_stations)
 				break;
 			}
 
-			//			if (strncmp(type_parsed,"MP3",3)==0)
-			//			{
 			page[pmatch[1].rm_so-1]='0'; //reset one bit of the string so regexec does not match the same line again
-			//			}
 
 			match=1;
 
@@ -371,9 +361,6 @@ int fetch_playlist(int outfile, int tc_control, int control, char* station, char
 	sprintf(get,"GET http://yp.shoutcast.com/sbin/tunein-station.pls?id=%s HTTP/1.0\r\n\r\n",parsed);
 
 	fetch_page("yp.shoutcast.com","80",get,page);
-	//printf("%s\n",page);
-
-
 
 	//parse playlist file to get IP and PORT
 
@@ -428,7 +415,6 @@ int fetch_playlist(int outfile, int tc_control, int control, char* station, char
 
 }
 
-char id[15]="";
 
 /*
  * Parses a string by delimeter
@@ -615,7 +601,6 @@ int fetch_file(int outfile, int tc_control, int control, char* IP, char* PORT, c
 
 	sprintf(buffer, "R");
 	write(tc_control, buffer, 1);
-fprintf(stderr, "waiting transcoder\n");	
 	while(buffer[0] != '\01') { // synchronization with transcoder. transcoder has to flush before receiving new stream.
 		if ((read_bytes = read(control, buffer, 1))<0)
 		{
@@ -624,7 +609,6 @@ fprintf(stderr, "waiting transcoder\n");
 		}
 	}
 
-fprintf(stderr, "sending data\n");	
 	//Wait for some input
 	for(;;)
 	{

@@ -535,6 +535,13 @@ int fetch_file(int outfile, int tc_control, char* IP, char* PORT, char *buf)
 			if (FD_ISSET(sockfd, &readsetfds)) //MP3 stream
 			{
 
+				//////////////////////////////////////////////////////////////////////////////////////////////
+				if (printed == 0) {
+					printf("printf: %d",printed);
+					print_time("mp3fetcher");
+					printed++;
+				}
+				//////////////////////////////////////////////////////////////////////////////////////////////
 				if ((read_bytes = recv(sockfd, buffer, 417,0))<0)
 				{
 					perror("recv");

@@ -1,6 +1,7 @@
 
 
-Run with ./RadioStreamer -c [IP-addrs],[port],[another addr],[another port],...
+Run with ./RadioStreamer [-6]
 
+Port 50000 takes incoming connections.
 
 Instructions for compiling are in INSTALL file.

@@ -252,7 +252,7 @@ int fetch_station_info(char stations[][100], int max_stations)
 				//				printf("added %s, bitrate: %s\n", stations[station_count-1], parsed);
 			}
 			if (station_count == max_stations) {
-				printf("breaking, %d, %d\n", station_count, max_stations);
+				//printf("breaking, %d, %d\n", station_count, max_stations);
 				break;
 			}
 

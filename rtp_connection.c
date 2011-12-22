@@ -16,7 +16,7 @@
 
 static int bind_udp(int *sock, int family);
 static int free_udp(int sock);
-int parse_destination(char *addr, char *port, struct destination *dest);
+int parse_destination(char *addr, char *port, struct destination *dest, struct rtp_connection *conn);
 static int get_payload_size(struct rtp_connection *connection);
 static unsigned long get_timestamp_per_packet_inc(
 		struct rtp_connection *connection);
@@ -27,13 +27,23 @@ int init_rtp_connection(struct rtp_connection *connection,
 		unsigned int sampling_freq, unsigned int sample_size,
 		int data_input) {
 	int err = 0, i = 0;
-	if(connection->howmany > 0) {
-		err = bind_udp(&connection->bind_sk, connection->destinations->addr_family);
-	} if(err) {
-		printf("error in bind\n");
-		goto exit;
+	if(connection->have_ipv4)
+		err = bind_udp(&connection->bind_sk4, AF_INET);
+	else
+		connection->bind_sk4 = 0;
+	if(err) {
+		goto exit_err;
 	}
-	
+
+	if(connection->have_ipv6)
+		err = bind_udp(&connection->bind_sk6, AF_INET6);
+	else
+		connection->bind_sk6 = 0;
+
+	if(err) {
+		goto exit_err;
+	}
+
 	connection->send_interval.tv_sec = send_interval_sec;
 	connection->send_interval.tv_usec = send_interval_usec;
 	connection->sampling_freq = sampling_freq;
@@ -48,17 +58,18 @@ int init_rtp_connection(struct rtp_connection *connection,
 	
 	connection->data_input = data_input;
 
-exit:
 	return err;
-
-exit_free_bind_sk:
-	close(connection->bind_sk);
+exit_err:
+	if(connection->bind_sk4)
+		close(connection->bind_sk4);
+	if(connection->bind_sk6)
+		close(connection->bind_sk6);
 	return err;
 }
 
 int rtp_connection_kick(struct rtp_connection *connection) {
 	
-	int n, err = 0, retval = 0, i = 0, bytes_available = 0;
+	int n, err = 0, retval = 0, i = 0, bytes_available = 0, sk = 0;
 	struct hostent *hp;
 	char buffer[1000];
 	struct rtp_packet *packet;
@@ -91,6 +102,11 @@ int rtp_connection_kick(struct rtp_connection *connection) {
 		FD_SET(0, &rfds);
 
 		retval = select(fileno(stdin)+1, &rfds, NULL, NULL, &tv);
+
+		if (retval < 0) {
+			perror("Error in select: ");
+			goto exit;
+		}
 		
 		// Check amount of data in pipe
 		err = ioctl(connection->data_input, FIONREAD, &bytes_available);
@@ -113,11 +129,13 @@ int rtp_connection_kick(struct rtp_connection *connection) {
 		if (bytes_available >= packet->payload_size) { // audio stream
 			readchars = read(connection->data_input, packet->payload, packet->payload_size);
 			for(i = 0; i < connection->howmany; i++) {
-				n = sendto(connection->bind_sk, packet->start,
+				sk = (connection->destinations[i].addr.ss_family ==
+					AF_INET) ? connection->bind_sk4 :
+					connection->bind_sk6;
+				n = sendto(sk, packet->start,
 					packet->packet_size, 0,
 					(const struct sockaddr *)
-					&connection->destinations[i].addr.
-					addr_in,
+					&connection->destinations[i].addr,
 					connection->destinations[i].length);
 				if (n < 0) {
 					err = UDP_SEND_ERROR;
@@ -142,21 +160,14 @@ int rtp_connection_kick(struct rtp_connection *connection) {
 exit:	
 	free(packet);
 exit_no_packet:
-	return 0;
+	return err;
 }
 
 static int bind_udp(int *sock, int family) {
 	int err = 0;
-
-	/* TODO take socket args rom user */
-
-	printf("trying to bind\n");
-if (family == AF_INET)
-	printf("Binding to IPv4\n");
-else if (family == AF_INET6)
-	printf("Binding to IPv6\n");
 	*sock = socket(family, SOCK_DGRAM, 0);
 	if (*sock < 0) {
+		perror("Error in bind\n");
 		err = SOCK_CREATE_ERROR;
 		goto exit;
 	}
@@ -169,11 +180,14 @@ int free_rtp_connection(struct rtp_connection *connection) {
 	int err = 0;
 
 	free(connection->destinations);
-	close(connection->bind_sk);
+	if(connection->bind_sk4)
+		close(connection->bind_sk4);
+	if(connection->bind_sk6)
+		close(connection->bind_sk6);
 	return err;
 }
 
-int parse_destination(char *addr, char *port, struct destination *dest) {
+int parse_destination(char *addr, char *port, struct destination *dest, struct rtp_connection *conn) {
 	struct addrinfo hints, *i, *retaddr;
 	int err = 0, status = 0;
 
@@ -194,17 +208,21 @@ int parse_destination(char *addr, char *port, struct destination *dest) {
 	//loop through the resuls and create a socket and connect()
 	for(i = retaddr; i != NULL; i = i->ai_next)
 	{
-		dest->addr_family = i->ai_family;
+		if(i->ai_family == AF_INET)
+			conn->have_ipv4 = 1;
+		else if(i->ai_family == AF_INET6)
+			conn->have_ipv6 = 1;
+		else
+			goto exit_err;
+
 		dest->length = i->ai_addrlen;
 		
-		bcopy((char *)i->ai_addr, (char *)&dest->addr.addr_in,
+		bcopy((char *)i->ai_addr, (char *)&dest->addr,
 			i->ai_addrlen);
-		dest->addr.addr_in.sin_family = i->ai_family;
-		dest->addr.addr_in.sin_port = htons(atoi(port));
-		
+			
 		goto exit;
 	}
-
+exit_err:
 	err = UNKNOWN_HOST_ERROR; // Did not get results.
 
 exit:
@@ -217,6 +235,9 @@ int set_destinations(char addr[][MAX_IPV4_ADDR_LEN], char ports[][MAX_IPV4_ADDR_
 		struct rtp_connection *connection, int howmany) {
 	
 	int err = 0, i = 0;
+	
+	connection->have_ipv4 = 0; // Initializing
+	connection->have_ipv6 = 0;
 
 	connection->destinations = malloc(howmany * sizeof(struct destination));
 	if(connection->destinations == NULL) {
@@ -228,7 +249,7 @@ int set_destinations(char addr[][MAX_IPV4_ADDR_LEN], char ports[][MAX_IPV4_ADDR_
 
 	for(i = 0; i < howmany && err == 0; i++)
 		err = parse_destination(addr[i], ports[i],
-			&connection->destinations[i]);
+			&connection->destinations[i], connection);
 	if(err != 0)
 		goto exit_free_dests;
 

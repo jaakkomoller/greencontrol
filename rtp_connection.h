@@ -5,16 +5,12 @@
 #include <netinet/in.h>
 
 struct destination {
-	int addr_family;
 	int length;
-	union {
-		struct sockaddr_in addr_in;
-		struct sockaddr_in6 addr_in6;
-	} addr;
+	struct sockaddr_storage addr;
 };
 
 struct rtp_connection {
-	int bind_sk;
+	int bind_sk4, bind_sk6;
 	int data_input;
 
 	struct timeval send_interval;
@@ -27,6 +23,7 @@ struct rtp_connection {
 
 	struct destination *destinations;
 	int howmany;
+	int have_ipv6, have_ipv4;
 };
 
 int init_rtp_connection(struct rtp_connection *connection,

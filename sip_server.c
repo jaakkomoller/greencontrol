@@ -7,7 +7,7 @@
 #include "mp3fetcher.h"
 #include "Transcoder.h"
  /*gcc -std=c99 -g -W -Wall -o ./Sip_server sip_server.c*/
-
+int printedSIP = 0;
 int connection_kick(char stations[][100], int stations_count, char *destination, int port, struct connection *conn) {
 	int err = 0;
 	int rtp_server_pipe[2]; // This pipes data from transcoder to rtp server
@@ -416,6 +416,13 @@ int sip_server_kick(char stations[][100], int station_count, int portno, int fam
 				}
 			}
 			else if(strncmp(Sip_cli->Req,"INVITE",6) == 0){
+				//////////////////////////////////////////////////////////////////////////////////////////////
+				if (printedSIP == 0) {
+					printf("printf: %d",printedSIP);
+					print_time("SIP INVITE");
+					printedSIP++;
+				}
+				//////////////////////////////////////////////////////////////////////////////////////////////
 				/*If the codec is supported*/
 				if(RTPflag == SUPPORT){
 					printf("Supports!");
@@ -471,6 +478,13 @@ int sip_server_kick(char stations[][100], int station_count, int portno, int fam
 					strcpy(server_msg,UNSUPPORTINFO_Handle(Sip_cli, cli_addr, server_msg2));
 				}
 				else {
+					//////////////////////////////////////////////////////////////////////////////////////////////
+					if (printedSIP == 0) {
+						printf("printf: %d",printedSIP);
+						print_time("SIP INVITE");
+						printedSIP++;
+					}
+					//////////////////////////////////////////////////////////////////////////////////////////////
 					struct node *conn = NULL;
 					strcpy(server_msg,INFO_Handle(Sip_cli, cli_addr, server_msg2));
 					for (conn = conn_list; conn != NULL; conn = conn->link)

@@ -22,7 +22,7 @@ void print_time(const char* message)
 	curtime=tv.tv_sec;
 	
 	strftime(buffer,30,"%m-%d-%Y  %T.",localtime(&curtime));
-	printf("%s:%s%ld\n",message,buffer,tv.tv_usec);
+	fprintf(stderr, "%s:%s%ld\n",message,buffer,tv.tv_usec);
 	
 	
 }

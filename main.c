@@ -19,7 +19,7 @@ int main(int argc, char *argv[]) {
 	}
 
 
-	sip_server_kick(stations, station_count, 50000);
+	sip_server_kick(stations, station_count, 50000, opt.family);
 
 exit_system_err:
 	if(err != 0)

@@ -35,39 +35,14 @@ int parse_opts(int argc, char **argv, struct cl_options *opt) {
 
 	opt->rtptest = 0;
 	opt->addresses = 0;
+	opt->family = AF_INET;
 
-	while ((c = getopt (argc, argv, "u:p:c:")) != -1 && error == 0) {
+	while ((c = getopt (argc, argv, "6")) != -1 && error == 0) {
 		switch (c)
 		{
-			case 'u':
-				printf("Option not implemented\n");
-				break;
-			case 'p':
-				printf("Option not implemented\n");
-				break;
-			case 'c':
-				// Set the client IP-addresses
-				// Format [address],[port],[another address],[another port]...
-				;char *ipaddr, *port, *temp;
-				int i = 0;
-
-				temp = optarg;
-				temp = strtok(temp, ",");
-				for(i = 0; temp != NULL; temp = strtok(NULL, ","), i++) {
-					ipaddr = temp;
-					port = strtok(NULL, ",");
-
-					if(port == NULL) {
-						fprintf (stderr, "Error while parsing ip address.\n");
-						error = 1;
-						goto exit;
-					}
-
-					printf("inserting address %s:%s\n", ipaddr, port);	
-					strcpy(opt->destsarray[i], ipaddr);
-					strcpy(opt->portsarray[i], port);
-				}
-				opt->addresses = i;
+			case '6':
+				printf("ipv6\n");
+				opt->family = AF_INET6;
 				break;
 			case '?':
 				if (optopt == 'u' || optopt == 'p' || optopt == 'c')

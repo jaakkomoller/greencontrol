@@ -170,7 +170,7 @@ int kill_all_connections(struct node **conn_list) {
 	return err;
 }
 
-int sip_server_kick(char stations[][100], int station_count, int portno)
+int sip_server_kick(char stations[][100], int station_count, int portno, int family)
 //int main(int argc, char *argv[])
 {
 	int sockfd; /*File descriptor for socket*/
@@ -178,11 +178,13 @@ int sip_server_kick(char stations[][100], int station_count, int portno)
 	int selectid;
 	socklen_t clilen; /*stores the size of the address of the client. This is needed for the accept system call.*/
 	char buffer[BUFLEN]; /*Buffer for reading each datagram*/
-	struct sockaddr_in serv_addr, cli_addr;
+	struct sockaddr_storage serv_addr, cli_addr;
 	struct node *conn_list; /* List of connected SIP clients */
 	fd_set readsetfds;
 
 
+	if(family != AF_INET && family != AF_INET6)
+        	error("Invalid family");
 	/*struct sockaddr_in
 	{
 	  short   sin_family; // must be AF_INET 
@@ -190,13 +192,19 @@ int sip_server_kick(char stations[][100], int station_count, int portno)
 	  struct  in_addr sin_addr;
 	  char    sin_zero[8]; // Not used, must be zero 
 	};*/
-	sockfd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+	sockfd = socket(family, SOCK_DGRAM, IPPROTO_UDP);
 	if (sockfd < 0) 
         	error("ERROR opening socket");
 	memset((char *) &serv_addr,'\0',sizeof(serv_addr)); /*set all addresses to 0*/
-	serv_addr.sin_family = AF_INET; /*Address family*/
-	serv_addr.sin_addr.s_addr = INADDR_ANY; /* Gets IP address of the host*/
-	serv_addr.sin_port = htons(portno); /*convert to network byte order*/
+	if(family == AF_INET) {
+		((struct sockaddr_in *)&serv_addr)->sin_family = family; /*Address family*/
+		((struct sockaddr_in *)&serv_addr)->sin_addr.s_addr = INADDR_ANY; /* Gets IP address of the host*/
+		((struct sockaddr_in *)&serv_addr)->sin_port = htons(portno); /*convert to network byte order*/
+	} else {
+		((struct sockaddr_in6 *)&serv_addr)->sin6_family = family; /*Address family*/
+		((struct sockaddr_in6 *)&serv_addr)->sin6_addr = in6addr_any; /* Gets IP address of the host*/
+		((struct sockaddr_in6 *)&serv_addr)->sin6_port = htons(portno); /*convert to network byte order*/
+	}
 	if (bind(sockfd, (struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0) /*binds a socket to an address*/
 		error("ERROR on binding");
 
@@ -232,8 +240,6 @@ int sip_server_kick(char stations[][100], int station_count, int portno)
 				continue;
 			}
 
-			printf("client: %s\n", inet_ntoa(cli_addr.sin_addr));
-
 			Sip_in *Sip_cli = in_init();
 			Sip_body *body = body_init();
 			result = strtok(buffer,"\n");
@@ -249,6 +255,12 @@ int sip_server_kick(char stations[][100], int station_count, int portno)
 			char *server_msg2 = malloc(BUFLEN);
 			memset(server_msg,'\0',BUFLEN);
 			/*Chop the stream into sub message and store each of them into Sip_in struct*/
+			char client_addr_s[100];
+			if(cli_addr.ss_family == AF_INET)
+				inet_ntop(AF_INET, &((struct sockaddr_in *)&cli_addr)->sin_addr, client_addr_s, 100);
+			else
+				inet_ntop(AF_INET6, &((struct sockaddr_in6 *)&cli_addr)->sin6_addr, client_addr_s, 100);
+
 			while(result != NULL){
 				if(ind == 0){
 					if((Sip_cli->Req = realloc(Sip_cli->Req,strlen(result) + 1)) == NULL) {
@@ -400,7 +412,6 @@ int sip_server_kick(char stations[][100], int station_count, int portno)
 			if(strncmp(Sip_cli->Req,"OPTIONS",7) == 0){
 				strcpy(server_msg,OPTIONS_Handle(Sip_cli, cli_addr,server_msg2));
 				if (sendto(sockfd, server_msg,strlen(server_msg), 0, (struct sockaddr *) &cli_addr, clilen)==-1) {
-					printf("1 %s, sockfd%i, cliaddr %s, clilen %d\n", server_msg, sockfd, inet_ntoa(cli_addr.sin_addr), clilen);
 					error("sendto");
 				}
 			}
@@ -442,7 +453,7 @@ int sip_server_kick(char stations[][100], int station_count, int portno)
 						break;
 				if(conn == NULL)
 					printf("Connection not found\n");
-				if(conn != NULL && connection_kick(stations, station_count, inet_ntoa(cli_addr.sin_addr), conn->data.port, &conn->data) == 0) {
+				if(conn != NULL && connection_kick(stations, station_count, client_addr_s, conn->data.port, &conn->data) == 0) {
 					char *temp = "1\n";
 					write(conn->data.mp3_fetcher_control, temp, 2); /* Start with channel 1 */
 					conn->data.is_connected = 1;
@@ -510,7 +521,7 @@ int sip_server_kick(char stations[][100], int station_count, int portno)
 	return 0; 
 }
 
-char* OPTIONS_Handle(Sip_in *client, struct sockaddr_in client_addr, char* msg){
+char* OPTIONS_Handle(Sip_in *client, struct sockaddr_storage client_addr, char* msg){
 
 	char* result = NULL;
 	char buffer[256];
@@ -522,6 +533,13 @@ char* OPTIONS_Handle(Sip_in *client, struct sockaddr_in client_addr, char* msg){
 	}
 	strcpy(Sip_ser->Status,"SIP/2.0 200 OK");
 
+	int portnum = 0;
+	if(client_addr.ss_family == AF_INET)
+		portnum = ntohs(((struct sockaddr_in *)&client_addr)->sin_port);
+	else
+		portnum = ntohs(((struct sockaddr_in6 *)&client_addr)->sin6_port);
+	
+
 	char delims[] = "rport";
 	result = strtok(client->Via,delims);
 	int i = 0;
@@ -531,7 +549,6 @@ char* OPTIONS_Handle(Sip_in *client, struct sockaddr_in client_addr, char* msg){
 			strcat(buffer,"rport=");
 			char port[6];
 			memset(port,'\0',6);
-			int portnum = ntohs(client_addr.sin_port);
 			sprintf(port,"%d",portnum);
 			port[strlen(port)] = '\0';
 			strcat(buffer,port);
@@ -640,7 +657,7 @@ char* OPTIONS_Handle(Sip_in *client, struct sockaddr_in client_addr, char* msg){
 }
 
 
-char* INVITE_Handle(Sip_in *client, Sip_body *body,struct sockaddr_in client_addr,char* msg){
+char* INVITE_Handle(Sip_in *client, Sip_body *body,struct sockaddr_storage client_addr,char* msg){
 	printf("IN INVITE Handles\n");
 
 	char* result = NULL;
@@ -653,6 +670,12 @@ char* INVITE_Handle(Sip_in *client, Sip_body *body,struct sockaddr_in client_add
 	}
 	strcpy(Sip_ser->Status,"SIP/2.0 200 OK");
 
+	int portnum = 0;
+	if(client_addr.ss_family == AF_INET)
+		portnum = ntohs(((struct sockaddr_in *)&client_addr)->sin_port);
+	else
+		portnum = ntohs(((struct sockaddr_in6 *)&client_addr)->sin6_port);
+	
 	char delims[] = "rport";
 	result = strtok(client->Via,delims);
 	int i = 0;
@@ -662,7 +685,6 @@ char* INVITE_Handle(Sip_in *client, Sip_body *body,struct sockaddr_in client_add
 			strcat(buffer,"rport=");
 			char port[6];
 			memset(port,'\0',6);
-			int portnum = ntohs(client_addr.sin_port);
 			sprintf(port,"%d",portnum);
 			port[strlen(port)] = '\0';
 			strcat(buffer,port);
@@ -729,7 +751,7 @@ char* INVITE_Handle(Sip_in *client, Sip_body *body,struct sockaddr_in client_add
 	result = strtok(NULL,":");
 
 	memset(buffer,'\0',256);
-	sprintf(buffer,"o=%s 123456 654321 IN IP4 %d",result, ntohs(client_addr.sin_port));
+	sprintf(buffer,"o=%s 123456 654321 IN IP4 %d",result, portnum);
 
 	if((serv_body->o = realloc(serv_body->o, strlen(buffer) + 1)) == NULL) {
 		error("realloc");
@@ -748,7 +770,11 @@ char* INVITE_Handle(Sip_in *client, Sip_body *body,struct sockaddr_in client_add
 	strcpy(serv_body->s,"s=A conversation");
 
 	memset(buffer,'\0',256);
-	sprintf(buffer,"c=IN IP4 %s",inet_ntoa(client_addr.sin_addr));
+	char buffer2[100];
+	if(client_addr.ss_family == AF_INET)
+		sprintf(buffer,"c=IN IP4 %s",inet_ntop(AF_INET, &((struct sockaddr_in *)&client_addr)->sin_addr, buffer2, 100));
+	else
+		sprintf(buffer,"c=IN IP4 %s",inet_ntop(AF_INET6, &((struct sockaddr_in6 *)&client_addr)->sin6_addr, buffer2, 100));
 	//printf("%s\n",inet_ntoa(server_addr.sin_addr));
 	if((serv_body->c = realloc(serv_body->c, strlen(buffer) + 1)) == NULL) {
 		error("realloc");
@@ -878,7 +904,7 @@ char* INVITE_Handle(Sip_in *client, Sip_body *body,struct sockaddr_in client_add
 	free_body(serv_body);
 	return(msg);
 }
-char* UNSUPPORT_Handle(Sip_in *client, struct sockaddr_in client_addr,char* msg){
+char* UNSUPPORT_Handle(Sip_in *client, struct sockaddr_storage client_addr,char* msg){
 	char* result = NULL;
 	char buffer[256];
 	memset(buffer,'\0',256);
@@ -889,6 +915,12 @@ char* UNSUPPORT_Handle(Sip_in *client, struct sockaddr_in client_addr,char* msg)
 	}
 	strcpy(Sip_ser->Status,"SIP/2.0 415 Unsupported Media Type");
 	
+	int portnum = 0;
+	if(client_addr.ss_family == AF_INET)
+		portnum = ntohs(((struct sockaddr_in *)&client_addr)->sin_port);
+	else
+		portnum = ntohs(((struct sockaddr_in6 *)&client_addr)->sin6_port);
+
 	char delims[] = "rport";
 	result = strtok(client->Via,delims);
 	int i = 0;
@@ -898,7 +930,6 @@ char* UNSUPPORT_Handle(Sip_in *client, struct sockaddr_in client_addr,char* msg)
 			strcat(buffer,"rport=");
 			char port[6];
 			memset(port,'\0',6);
-			int portnum = ntohs(client_addr.sin_port);
 			sprintf(port,"%d",portnum);
 			port[strlen(port)] = '\0';
 			strcat(buffer,port);
@@ -986,7 +1017,7 @@ char* UNSUPPORT_Handle(Sip_in *client, struct sockaddr_in client_addr,char* msg)
 	free_out(Sip_ser);
 	return(msg);
 }
-char* UNSUPPORTINFO_Handle(Sip_in *client, struct sockaddr_in client_addr,char* msg){
+char* UNSUPPORTINFO_Handle(Sip_in *client, struct sockaddr_storage client_addr,char* msg){
 	char* result = NULL;
 	char buffer[256];
 	memset(buffer,'\0',256);
@@ -996,6 +1027,12 @@ char* UNSUPPORTINFO_Handle(Sip_in *client, struct sockaddr_in client_addr,char* 
 		error("realloc");
 	}
 	strcpy(Sip_ser->Status,"SIP/2.0 415 Unsupported Media Type");
+
+	int portnum = 0;
+	if(client_addr.ss_family == AF_INET)
+		portnum = ntohs(((struct sockaddr_in *)&client_addr)->sin_port);
+	else
+		portnum = ntohs(((struct sockaddr_in6 *)&client_addr)->sin6_port);
 	
 	char delims[] = "rport";
 	result = strtok(client->Via,delims);
@@ -1006,7 +1043,6 @@ char* UNSUPPORTINFO_Handle(Sip_in *client, struct sockaddr_in client_addr,char* 
 			strcat(buffer,"rport=");
 			char port[6];
 			memset(port,'\0',6);
-			int portnum = ntohs(client_addr.sin_port);
 			sprintf(port,"%d",portnum);
 			port[strlen(port)] = '\0';
 			strcat(buffer,port);
@@ -1093,7 +1129,7 @@ char* UNSUPPORTINFO_Handle(Sip_in *client, struct sockaddr_in client_addr,char* 
 }
 
 /*int ACK_Handle();*/
-char* INFO_Handle(Sip_in *client, struct sockaddr_in client_addr,char* msg){
+char* INFO_Handle(Sip_in *client, struct sockaddr_storage client_addr,char* msg){
 
 	char* result = NULL;
 	char buffer[256];
@@ -1104,6 +1140,13 @@ char* INFO_Handle(Sip_in *client, struct sockaddr_in client_addr,char* msg){
 		error("realloc");
 	}
 	strcpy(Sip_ser->Status,"SIP/2.0 200 OK");
+
+	int portnum = 0;
+	if(client_addr.ss_family == AF_INET)
+		portnum = ntohs(((struct sockaddr_in *)&client_addr)->sin_port);
+	else
+		portnum = ntohs(((struct sockaddr_in6 *)&client_addr)->sin6_port);
+	
 	
 	char delims[] = "rport";
 	result = strtok(client->Via,delims);
@@ -1114,7 +1157,6 @@ char* INFO_Handle(Sip_in *client, struct sockaddr_in client_addr,char* msg){
 			strcat(buffer,"rport=");
 			char port[6];
 			memset(port,'\0',6);
-			int portnum = ntohs(client_addr.sin_port);
 			sprintf(port,"%d",portnum);
 			port[strlen(port)] = '\0';
 			strcat(buffer,port);
@@ -1212,7 +1254,7 @@ char* INFO_Handle(Sip_in *client, struct sockaddr_in client_addr,char* msg){
 	free_out(Sip_ser);
 	return(msg);
 }
-char* BYE_Handle(Sip_in *client, struct sockaddr_in client_addr,char* msg){
+char* BYE_Handle(Sip_in *client, struct sockaddr_storage client_addr,char* msg){
 	printf("IN BYE Handle\n");
 	char* result = NULL;
 	char buffer[256];
@@ -1224,6 +1266,13 @@ char* BYE_Handle(Sip_in *client, struct sockaddr_in client_addr,char* msg){
 		error("realloc");
 	}
 	strcpy(Sip_ser->Status,"SIP/2.0 200 OK");
+
+	int portnum = 0;
+	if(client_addr.ss_family == AF_INET)
+		portnum = ntohs(((struct sockaddr_in *)&client_addr)->sin_port);
+	else
+		portnum = ntohs(((struct sockaddr_in6 *)&client_addr)->sin6_port);
+	
 	
 	char delims[] = "rport";
 	result = strtok(client->Via,delims);
@@ -1234,7 +1283,6 @@ char* BYE_Handle(Sip_in *client, struct sockaddr_in client_addr,char* msg){
 			strcat(buffer,"rport=");
 			char port[6];
 			memset(port,'\0',6);
-			int portnum = ntohs(client_addr.sin_port);
 			sprintf(port,"%d",portnum);
 			port[strlen(port)] = '\0';
 			strcat(buffer,port);

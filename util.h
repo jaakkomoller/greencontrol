@@ -30,7 +30,7 @@ struct cl_options {
 	int addresses;
 	char destsarray[MAX_IPV4_ADDRS][MAX_IPV4_ADDR_LEN];
 	char portsarray[MAX_IPV4_ADDRS][MAX_IPV4_ADDR_LEN];
-
+	int family;
 	/* Debug flags, remove from final.. */
 	int rtptest;
 };

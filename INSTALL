@@ -2,7 +2,7 @@
 
 Prerequisites:
 
-In order to compile in Ubuntu, you need to install the following packages:
+In order to compile in Ubuntu Oneiric, you need to install the following packages:
 
 libavfilter-dev
 libavformat-dev

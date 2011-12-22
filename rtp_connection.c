@@ -90,10 +90,6 @@ int rtp_connection_kick(struct rtp_connection *connection) {
 
 
 	while(1) {
-		/* TODO Here we should take into account the
-		 * processing time taken to send the packets,
-		 * so that we don't introduce extra latency
-		 * between samples */
 		tv.tv_sec = connection->send_interval.tv_sec;
 		tv.tv_usec = connection->send_interval.tv_usec;
 
@@ -143,13 +139,9 @@ int rtp_connection_kick(struct rtp_connection *connection) {
 				}
 			}
 			
-//			printf(".");
-//			fflush(stdout);
-
 			connection->seq_no++;
 			connection->timestamp +=
 				get_timestamp_per_packet_inc(connection);
-			/* TODO packet no as seq no might wrap */
 			init_rtp_packet(packet, htons(connection->seq_no),
 				htonl(connection->timestamp), connection->ssrc);
 
@@ -199,7 +191,6 @@ int parse_destination(char *addr, char *port, struct destination *dest, struct r
 	//hostname resolving
 	if (status=getaddrinfo(addr, port, &hints, &retaddr) != 0)
 	{
-		//printf("an error occured with getaddrinfo\n");
 		fprintf(stderr, "getaddrinfo error: %s\n", gai_strerror(status));
 		err = UNKNOWN_HOST_ERROR; // Did not get results.
 		goto exit;
